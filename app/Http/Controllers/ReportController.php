@@ -191,41 +191,41 @@ class ReportController extends Controller
         return view('reports.expense', compact('rows', 'total'));
     }
 
-    public function ledger(Request $r)
-    {
-        $accounts = ChartAccount::orderBy('code')->get();
-        $lines = collect();
-        $account = null;
+    // public function ledger(Request $r)
+    // {
+    //     $accounts = ChartAccount::orderBy('code')->get();
+    //     $lines = collect();
+    //     $account = null;
 
-        if ($r->filled('account_id')) {
-            $account = ChartAccount::findOrFail($r->account_id);
-            $q = JournalLine::with('account')
-                ->where('chart_account_id', $account->id)
-                ->whereHas('journal', function ($j) use ($r) {
-                    $j->where('status', 'POSTED');
-                    if ($r->filled('date_from')) $j->whereDate('journal_date', '>=', $r->date_from);
-                    if ($r->filled('date_to')) $j->whereDate('journal_date', '<=', $r->date_to);
-                })
-                ->join('journal_entries', 'journal_entry_lines.journal_entry_id', '=', 'journal_entries.id')
-                ->orderBy('journal_entries.journal_date')
-                ->orderBy('journal_entry_lines.id')
-                ->select('journal_entry_lines.*', 'journal_entries.journal_no', 'journal_entries.journal_date', 'journal_entries.reference');
+    //     if ($r->filled('account_id')) {
+    //         $account = ChartAccount::findOrFail($r->account_id);
+    //         $q = JournalLine::with('account')
+    //             ->where('chart_account_id', $account->id)
+    //             ->whereHas('journal', function ($j) use ($r) {
+    //                 $j->where('status', 'POSTED');
+    //                 if ($r->filled('date_from')) $j->whereDate('journal_date', '>=', $r->date_from);
+    //                 if ($r->filled('date_to')) $j->whereDate('journal_date', '<=', $r->date_to);
+    //             })
+    //             ->join('journal_entries', 'journal_entry_lines.journal_entry_id', '=', 'journal_entries.id')
+    //             ->orderBy('journal_entries.journal_date')
+    //             ->orderBy('journal_entry_lines.id')
+    //             ->select('journal_entry_lines.*', 'journal_entries.journal_no', 'journal_entries.journal_date', 'journal_entries.reference');
 
-            $balance = 0;
-            $lines = $q->get()->map(function ($line) use (&$balance, $account) {
-                $delta = $account->normal_balance === 'DEBIT'
-                    ? (float) $line->debit - (float) $line->credit
-                    : (float) $line->credit - (float) $line->debit;
-                $balance += $delta;
-                $line->running_balance = $balance;
-                return $line;
-            });
+    //         $balance = 0;
+    //         $lines = $q->get()->map(function ($line) use (&$balance, $account) {
+    //             $delta = $account->normal_balance === 'DEBIT'
+    //                 ? (float) $line->debit - (float) $line->credit
+    //                 : (float) $line->credit - (float) $line->debit;
+    //             $balance += $delta;
+    //             $line->running_balance = $balance;
+    //             return $line;
+    //         });
 
-            $lines = $this->paginateCollection($lines, $r);
-        }
+    //         $lines = $this->paginateCollection($lines, $r);
+    //     }
 
-        return view('reports.ledger', compact('accounts', 'account', 'lines'));
-    }
+    //     return view('reports.ledger', compact('accounts', 'account', 'lines'));
+    // }
 
     public function trialBalance(Request $r)
     {
