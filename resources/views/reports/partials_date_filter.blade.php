@@ -1,0 +1,1 @@
+<form class="form-grid" method="GET"><div class="field"><label>Dari</label><input type="date" name="date_from" value="{{ request('date_from') }}"></div><div class="field"><label>Sampai</label><input type="date" name="date_to" value="{{ request('date_to') }}"></div><div><button class="btn">Filter</button></div></form>

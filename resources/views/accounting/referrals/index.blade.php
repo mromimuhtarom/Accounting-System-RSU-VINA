@@ -1,0 +1,10 @@
+@extends('layouts.app')
+@section('content')
+<div class="page-head"><div><h1 class="page-title">Pengeluaran Referal</h1><p class="page-sub">Bagian dari Pengeluaran. Satu sesi pasien hanya dapat memiliki satu referal.</p></div><a class="btn primary" href="{{ route('accounting.referrals.create') }}">＋ Input Referal</a></div>
+<div class="card"><form method="GET" class="form-grid">
+<div class="field"><label>Dari Tanggal</label><input type="date" name="date_from" value="{{ request('date_from') }}"></div><div class="field"><label>Sampai Tanggal</label><input type="date" name="date_to" value="{{ request('date_to') }}"></div><div class="field"><label>Pasien</label><select name="patient_id"><option value="">Semua Pasien</option>@foreach($patients as $p)<option value="{{ $p->id }}" @selected(request('patient_id')==$p->id)>{{ $p->medical_record_no }} - {{ $p->name }}</option>@endforeach</select></div><div style="align-self:end"><button class="btn">Filter</button></div>
+</form></div>
+<div class="card"><div class="table-wrap"><table><thead><tr><th>Tanggal</th><th>No Referal</th><th>Pasien</th><th>Sesi</th><th>Penerima Referal</th><th>Nominal</th><th>Aksi</th></tr></thead><tbody>
+@forelse($referrals as $r)<tr><td>{{ $r->expense_date->format('d-m-Y') }}</td><td><strong>{{ $r->expense_no }}</strong></td><td>{{ $r->patient?->medical_record_no }}<br><strong>{{ $r->patient?->name }}</strong></td><td>{{ $r->receipt?->transaction_no }}<div class="muted">{{ $r->receipt?->transaction_date?->format('d-m-Y') }} · {{ $r->receipt?->serviceUnit?->name }}</div></td><td>{{ $r->referral_recipient }}</td><td class="money">Rp {{ number_format($r->amount,0,',','.') }}</td><td><div class="actions">@if(!$r->journal)<a class="btn" href="{{ route('accounting.referrals.edit',$r) }}">Edit</a><form method="POST" action="{{ route('accounting.referrals.journal',$r) }}">@csrf<button class="btn">Buat Jurnal</button></form>@else<span class="badge">Sudah dijurnal</span>@endif</div></td></tr>@empty<tr><td colspan="7" class="muted">Belum ada pengeluaran referal.</td></tr>@endforelse
+</tbody></table></div><div class="pagination">{{ $referrals->links() }}</div></div>
+@endsection
