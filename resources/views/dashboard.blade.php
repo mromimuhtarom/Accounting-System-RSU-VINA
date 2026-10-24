@@ -57,7 +57,6 @@
  <a class="quick-link" href="{{ route('accounting.receipts.index') }}">↙ Penerimaan</a><a class="quick-link" href="{{ route('accounting.pengeluaran.create') }}">↗ Input Pengeluaran</a>
  @if(in_array($role,['ACCOUNTING','KEPALA_KEUANGAN']))<a class="quick-link" href="{{ route('accounting.jurnal.create') }}">▤ Jurnal Manual</a>@endif
  @endif
- <a class="quick-link" href="{{ route('reports.ledger') }}">≡ General Ledger</a>
  <a class="quick-link" href="{{ route('reports.income') }}">▧ Laporan Penerimaan</a>
  <a class="quick-link" href="{{ route('reports.expense') }}">▧ Laporan Pengeluaran</a>
  </div></div>
