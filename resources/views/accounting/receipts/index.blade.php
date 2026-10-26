@@ -2,6 +2,7 @@
 
 @section('content')
 <div class="page-head">
+    <a class="btn" href="{{ route('accounting.excel-import', ['module'=>'receipts']) }}">Import Excel</a>
     <div>
         <h1 class="page-title">Pemasukan</h1>
         <p class="page-sub">Kode pemasukan menggunakan Chart of Accounts yang sama dengan Pengeluaran.</p>

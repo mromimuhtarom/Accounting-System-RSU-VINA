@@ -5,6 +5,7 @@
     $monthNames = [1=>'Januari',2=>'Februari',3=>'Maret',4=>'April',5=>'Mei',6=>'Juni',7=>'Juli',8=>'Agustus',9=>'September',10=>'Oktober',11=>'November',12=>'Desember'];
 @endphp
 
+<div id="report-pdf-content">
 <div class="page-head">
     <div>
         <h1 class="page-title">Laporan Keuangan Bulanan</h1>
@@ -22,6 +23,7 @@
             @endfor
         </select>
         <button class="btn primary" type="submit">Tampilkan</button>
+        @include('reports.partials.pdf-export', ['pdfKind' => 'Bulanan', 'pdfPeriod' => sprintf('%04d-%02d', $year, $month)])
     </form>
 </div>
 
@@ -92,6 +94,7 @@
 <div class="card" style="padding:18px;margin-bottom:18px">
  <h3>Rekap Klaim Asuransi per Penjamin</h3>
  <p class="page-sub">Klaim bulan {{ $monthNames[$month] }} {{ $year }} dari modul Klaim & Piutang Asuransi. Nilai klaim tidak ditambahkan kembali ke pendapatan transaksi.</p>
+ @include('reports.partials.insurance-claims-chart')
  <div class="rsuve-claim-table"><table><thead><tr><th>Perusahaan / Penjamin</th><th>Jenis pelayanan</th><th>Jumlah rekap</th><th>Nilai diajukan</th><th>Disetujui</th><th>Dibayar</th></tr></thead><tbody>
  @forelse($claimsByGuarantor as $claim)
   @foreach(['RAWAT_JALAN'=>'Rawat Jalan','RAWAT_INAP'=>'Rawat Inap'] as $key=>$label)
@@ -164,5 +167,6 @@
     <div><span>Total Pemasukan</span><strong>Rp {{ number_format($totalIncome, 0, ',', '.') }}</strong></div>
     <div><span>Total Pengeluaran</span><strong>Rp {{ number_format($totalExpense, 0, ',', '.') }}</strong></div>
     <div class="grand-result"><span>Surplus / (Defisit)</span><strong class="{{ $surplus < 0 ? 'text-danger' : 'text-positive' }}">Rp {{ number_format($surplus, 0, ',', '.') }}</strong></div>
+</div>
 </div>
 @endsection

@@ -24,7 +24,7 @@
   .rsuve-year-legend{display:flex;flex-wrap:wrap;gap:18px;color:#526679;font-size:13px}
   @media(max-width:680px){.rsuve-year-root .yearly-table th:first-child,.rsuve-year-root .yearly-table td:first-child{min-width:135px;max-width:170px}.rsuve-year-root .page-head,.rsuve-year-root .period-filter{width:100%}}
 </style>
-<div class="rsuve-year-root">
+<div class="rsuve-year-root" id="report-pdf-content">
 <div class="page-head">
     <div>
         <h1 class="page-title">Laporan Keuangan Tahunan</h1>
@@ -37,6 +37,7 @@
             @endfor
         </select>
         <button class="btn primary" type="submit">Tampilkan</button>
+        @include('reports.partials.pdf-export', ['pdfKind' => 'Tahunan', 'pdfPeriod' => (string) $year])
     </form>
 </div>
 

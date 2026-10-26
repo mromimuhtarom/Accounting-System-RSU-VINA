@@ -37,7 +37,7 @@ class UserController extends Controller
             'password' => Hash::make($data['password']),
             'is_active' => (bool) $data['is_active'],
         ]);
-        $user->roles()->sync($data['role_ids']);
+        $this->syncRoles($user, $data['role_ids']);
 
         return redirect()->route('it.users.index')->with('success', 'Akun berhasil dibuat.');
     }
@@ -62,7 +62,7 @@ class UserController extends Controller
         }
 
         $user->update($payload);
-        $user->roles()->sync($data['role_ids']);
+        $this->syncRoles($user, $data['role_ids']);
 
         return redirect()->route('it.users.index')->with('success', 'Akun berhasil diperbarui.');
     }
@@ -83,5 +83,13 @@ class UserController extends Controller
     {
         $app = Application::where('code', config('accounting.application_code', 'ACCOUNTING'))->firstOrFail();
         return Role::where('application_id', $app->id)->orderBy('name')->get();
+    }
+
+    private function syncRoles(User $user, array $roleIds): void
+    {
+        $before = $user->roles()->orderBy('roles.id')->get(['roles.id','roles.code','roles.name'])->toArray();
+        $user->roles()->sync($roleIds);
+        $after = $user->roles()->orderBy('roles.id')->get(['roles.id','roles.code','roles.name'])->toArray();
+        if ($before !== $after) app(\App\Services\ActivityLogger::class)->record($user, 'updated', ['roles'=>$before], ['roles'=>$after], ['roles']);
     }
 }

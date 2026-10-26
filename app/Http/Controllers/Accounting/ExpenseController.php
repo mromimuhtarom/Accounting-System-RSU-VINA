@@ -8,6 +8,7 @@ use App\Models\ChartAccount;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Services\JournalService;
+use App\Services\ExpenseTransactionService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -22,12 +23,8 @@ class ExpenseController extends Controller
             'patient',
             'receipt',
             'journal',
+            'creator',
         ])->latest('expense_date');
-
-        if ($this->isCashier($request)) {
-            $query->where('created_by', $request->user()->id)
-                ->where('expense_type', 'GENERAL');
-        }
 
         if ($request->filled('q')) {
             $term = trim((string) $request->input('q'));
@@ -90,14 +87,6 @@ class ExpenseController extends Controller
             return redirect()->route('accounting.referrals.edit', $pengeluaran);
         }
 
-        if ($pengeluaran->journal()->exists()) {
-            return redirect()
-                ->route($this->routePrefix($request) . '.index')
-                ->withErrors([
-                    'expense' => 'Pengeluaran yang sudah dijurnal tidak dapat diubah.',
-                ]);
-        }
-
         return view('accounting.expenses.edit', array_merge(
             $this->formData(),
             [
@@ -115,12 +104,6 @@ class ExpenseController extends Controller
             abort(404);
         }
 
-        if ($pengeluaran->journal()->exists()) {
-            return back()->withErrors([
-                'expense' => 'Pengeluaran yang sudah dijurnal tidak dapat diubah.',
-            ]);
-        }
-
         $data = $this->validated($request);
 
         if ($request->hasFile('attachment')) {
@@ -130,7 +113,7 @@ class ExpenseController extends Controller
         }
 
         unset($data['attachment']);
-        $pengeluaran->update($data);
+        app(ExpenseTransactionService::class)->update($pengeluaran, $data);
 
         return redirect()
             ->route($this->routePrefix($request) . '.index')
@@ -145,11 +128,7 @@ class ExpenseController extends Controller
             return back()->with('error', 'Pengeluaran Referal dikelola melalui module Referal.');
         }
 
-        if ($pengeluaran->journal()->exists()) {
-            return back()->with('error', 'Pengeluaran yang sudah dijurnal tidak dapat dihapus.');
-        }
-
-        $pengeluaran->delete();
+        app(ExpenseTransactionService::class)->delete($pengeluaran);
 
         return redirect()
             ->route($this->routePrefix($request) . '.index')
@@ -175,27 +154,25 @@ class ExpenseController extends Controller
     private function formData(): array
     {
         return [
-            'categories' => ExpenseCategory::where('is_active', true)
+            'categories' => ExpenseCategory::query()
+                ->where('is_active', true)
                 ->where('code', '!=', 'REFERAL')
+                ->whereHas('expenseAccount', fn ($q) => $q->where('is_active', true)->where('type', 'EXPENSE'))
+                ->with(['expenseAccount:id,code,name'])
+                ->orderBy('name')
                 ->get(),
 
-            'accounts' => ChartAccount::where('is_active', true)
-                ->where('type', 'EXPENSE')
-                ->where('code', '!=', '5-1014')
-                ->get(),
-
-            'cashBanks' => CashBankAccount::where('is_active', true)
+                        'cashBanks' => CashBankAccount::where('is_active', true)
                 ->get(),
         ];
     }
 
-    private function validated(Request $request): array
+    public function validated(Request $request): array
     {
         $data = $request->validate([
             'expense_date' => ['required', 'date'],
             'expense_category_id' => ['required', 'exists:expense_categories,id'],
-            'chart_account_id' => ['required', 'exists:chart_accounts,id'],
-            'description' => ['required', 'string', 'max:500'],
+                        'description' => ['required', 'string', 'max:500'],
             'amount' => ['required', 'numeric', 'gt:0'],
             'payment_method' => ['required', 'in:CASH,TRANSFER,QRIS,CARD'],
             'cash_bank_account_id' => ['required', 'exists:cash_bank_accounts,id'],
@@ -203,9 +180,17 @@ class ExpenseController extends Controller
             'attachment' => ['nullable', 'file', 'max:5120'],
         ]);
 
-        $category = ExpenseCategory::findOrFail(
-            $data['expense_category_id']
-        );
+        $category = ExpenseCategory::with('expenseAccount')->findOrFail($data['expense_category_id']);
+
+        if (!$category->is_active || !$category->expenseAccount || !$category->expenseAccount->is_active
+            || $category->expenseAccount->type !== 'EXPENSE') {
+            throw ValidationException::withMessages([
+                'expense_category_id' => 'Kategori belum memiliki akun COA Beban aktif. Hubungi Accounting untuk pengaturan kategori.',
+            ]);
+        }
+
+        // Jangan percaya COA yang dikirim browser; selalu ambil dari pemetaan kategori.
+        $data['chart_account_id'] = $category->expense_account_id;
 
         if ($category->code === 'REFERAL') {
             throw ValidationException::withMessages([
@@ -218,13 +203,14 @@ class ExpenseController extends Controller
 
     private function ensureAccessible(Request $request, Expense $expense): void
     {
+        abort_unless($request->user()?->canManageTransaction($expense->created_by), 403);
+
         if (!$this->isCashier($request)) {
             return;
         }
 
         abort_unless(
-            $expense->expense_type === 'GENERAL'
-                && (int) $expense->created_by === (int) $request->user()->id,
+            $expense->expense_type === 'GENERAL',
             403
         );
     }

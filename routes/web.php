@@ -23,11 +23,13 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware('auth')->group(function () {
+    Route::post('/session/activity', fn () => response()->noContent())->name('session.activity');
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
-    // Kasir: kelola pasien, penerimaan miliknya, dan pengeluaran umum miliknya.
+    // Kasir dapat melihat seluruh penerimaan dan pengeluaran serta mengelola pengeluaran umum.
     Route::middleware('role:KASIR')->prefix('kasir')->name('cashier.')->group(function () {
+        Route::match(['get', 'post'], '/excel-import/{module}', [\App\Http\Controllers\Accounting\ExcelImportController::class, 'handle'])->whereIn('module', ['receipts', 'expenses'])->name('excel-import');
         Route::resource('pasien', PatientController::class)->except(['show'])->parameters(['pasien' => 'patient'])->names([
             'index' => 'patients.index',
             'create' => 'patients.create',
@@ -52,6 +54,16 @@ Route::middleware('auth')->group(function () {
         Route::delete('/pengeluaran/{pengeluaran}', [ExpenseController::class, 'destroy'])->name('expenses.destroy');
     });
 
+    Route::middleware('role:ASURANSI')->prefix('asuransi/penerimaan')->name('insurance.receipts.')->group(function () {
+        Route::match(['get', 'post'], '/excel-import', [\App\Http\Controllers\Accounting\ExcelImportController::class, 'handle'])->defaults('module', 'receipts')->name('excel-import');
+        Route::get('/', [CashierReceiptController::class, 'index'])->name('index');
+        Route::get('/input', [CashierReceiptController::class, 'create'])->name('create');
+        Route::post('/', [CashierReceiptController::class, 'store'])->name('store');
+        Route::get('/{receipt}/edit', [CashierReceiptController::class, 'edit'])->name('edit');
+        Route::put('/{receipt}', [CashierReceiptController::class, 'update'])->name('update');
+        Route::delete('/{receipt}', [CashierReceiptController::class, 'destroy'])->name('destroy');
+    });
+
     // Kasir, Accounting, dan IT dapat mengelola Master Data.
     Route::middleware('role:KASIR,ACCOUNTING,KEPALA_KEUANGAN,ADMIN_ACCOUNTING,ASURANSI')
         ->prefix('accounting')
@@ -64,6 +76,7 @@ Route::middleware('auth')->group(function () {
         });
 
     Route::middleware('role:ACCOUNTING,KEPALA_KEUANGAN,ADMIN_ACCOUNTING')->prefix('accounting')->name('accounting.')->group(function () {
+        Route::match(['get', 'post'], '/excel-import/{module}', [\App\Http\Controllers\Accounting\ExcelImportController::class, 'handle'])->whereIn('module', ['receipts', 'expenses'])->name('excel-import');
         Route::get('/penerimaan', [AccountingReceiptController::class, 'index'])->name('receipts.index');
         Route::get('/penerimaan/input', [AccountingReceiptController::class, 'create'])->name('receipts.create');
         Route::post('/penerimaan', [AccountingReceiptController::class, 'store'])->name('receipts.store');
@@ -73,7 +86,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/penerimaan/{receipt}/journal', [AccountingReceiptController::class, 'generateJournal'])->middleware('role:ACCOUNTING,KEPALA_KEUANGAN')->name('receipts.journal');
 
         Route::resource('pengeluaran', ExpenseController::class)->except(['show','destroy']);
-        Route::delete('/pengeluaran/{pengeluaran}', [ExpenseController::class, 'destroy'])->middleware('role:ACCOUNTING,KEPALA_KEUANGAN')->name('pengeluaran.destroy');
+        Route::delete('/pengeluaran/{pengeluaran}', [ExpenseController::class, 'destroy'])->middleware('role:ACCOUNTING,KEPALA_KEUANGAN,ADMIN_ACCOUNTING')->name('pengeluaran.destroy');
         Route::post('/pengeluaran/{expense}/journal', [ExpenseController::class, 'generateJournal'])->middleware('role:ACCOUNTING,KEPALA_KEUANGAN')->name('pengeluaran.journal');
 
 
@@ -83,6 +96,10 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('role:IT')->group(function () {
         Route::prefix('it')->name('it.')->group(function () {
+            Route::get('/activity-logs', [\App\Http\Controllers\IT\ActivityLogController::class, 'index'])->name('activity-logs.index');
+            Route::get('/activity-logs/{activityLog}', [\App\Http\Controllers\IT\ActivityLogController::class, 'show'])->name('activity-logs.show');
+            Route::get('/session-logs', [\App\Http\Controllers\IT\ActivityLogController::class, 'index'])->name('session-logs.index');
+            Route::get('/session-logs/{activityLog}', [\App\Http\Controllers\IT\ActivityLogController::class, 'show'])->name('session-logs.show');
             Route::resource('users', UserController::class)->except(['show', 'destroy']);
         });
     });

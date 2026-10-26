@@ -1,18 +1,24 @@
 @extends('layouts.app')
 @section('content')
-<div class="page-head"><div><h1 class="page-title">Edit Penerimaan</h1><p class="page-sub">Perbaiki transaksi sebelum dijurnal oleh Accounting.</p></div><a class="btn" href="{{ route('cashier.receipts.index') }}">← Kembali</a></div>
-<div class="card"><form method="POST" action="{{ route('cashier.receipts.update',$receipt) }}">@csrf @method('PUT')
+<div class="page-head">
+    <div><h1 class="page-title">{{ $isInsurance ? 'Edit Penerimaan Asuransi' : 'Edit Penerimaan' }}</h1><p class="page-sub">Format Penerimaan seperti Accounting. Informasi pasien cukup ditulis dalam Keterangan.</p></div>
+    <a class="btn" href="{{ route($routePrefix . '.index') }}">Lihat Semua Penerimaan</a>
+</div>
+<div class="card">
+<form method="POST" action="{{ route($routePrefix . '.update',$receipt) }}">@csrf
+@method('PUT')
 <div class="form-grid">
-<div class="field"><label>No Transaksi</label><input value="{{ $receipt->transaction_no }}" disabled></div>
-<div class="field"><label>Tanggal</label><input type="date" name="transaction_date" value="{{ old('transaction_date',$receipt->transaction_date->format('Y-m-d')) }}" required></div>
-<div class="field"><label>Pasien</label><select name="patient_id" required><option value="">Pilih pasien</option>@foreach($patients as $p)<option value="{{ $p->id }}" @selected(old('patient_id',$receipt->patient_id)==$p->id)>{{ $p->medical_record_no }} - {{ $p->name }}</option>@endforeach</select></div>
-<div class="field"><label>Unit Pelayanan</label><select name="service_unit_id" required>@foreach($units as $x)<option value="{{ $x->id }}" @selected(old('service_unit_id',$receipt->service_unit_id)==$x->id)>{{ $x->name }}</option>@endforeach</select></div>
-<div class="field"><label>Penjamin</label><select name="guarantor_id" required>@foreach($guarantors as $x)<option value="{{ $x->id }}" @selected(old('guarantor_id',$receipt->guarantor_id)==$x->id)>{{ $x->name }}{{ $x->is_bpjs ? ' (BPJS)' : '' }}</option>@endforeach</select></div>
-<div class="field"><label>Jenis Pelayanan</label><input name="service_type" value="{{ old('service_type',$receipt->service_type) }}" placeholder="Opsional"></div>
-<div class="field"><label>Nominal</label><input type="number" min="1" step="0.01" name="amount" value="{{ old('amount',$receipt->amount) }}" required></div>
-<div class="field"><label>Metode Pembayaran</label><select name="payment_method" required>@foreach(['CASH'=>'Cash','TRANSFER'=>'Transfer','QRIS'=>'QRIS','CARD'=>'Debit/Kartu','GUARANTOR'=>'Penjamin / Piutang'] as $key=>$label)<option value="{{ $key }}" @selected(old('payment_method',$receipt->payment_method)===$key)>{{ $label }}</option>@endforeach</select></div>
-<div class="field"><label>Kas / Bank</label><select name="cash_bank_account_id"><option value="">Pilih / kosong bila Penjamin</option>@foreach($cashBanks as $x)<option value="{{ $x->id }}" @selected(old('cash_bank_account_id',$receipt->cash_bank_account_id)==$x->id)>{{ $x->name }}</option>@endforeach</select></div>
-<div class="field" style="grid-column:1/-1"><label>Keterangan</label><textarea name="notes">{{ old('notes',$receipt->notes) }}</textarea></div>
-</div><div style="margin-top:18px;display:flex;gap:10px"><button class="btn primary">Simpan Perubahan</button><a class="btn" href="{{ route('cashier.receipts.index') }}">Batal</a></div>
+<div class="field"><label>Nomor Transaksi</label><input disabled value="{{ $receipt->transaction_no }}"></div>
+ <div class="field"><label>Tanggal *</label><input type="date" name="transaction_date" value="{{ old('transaction_date', $receipt->transaction_date->format('Y-m-d')) }}" required></div>
+ <div class="field"><label>Kode / Chart of Accounts *</label><select name="chart_account_id" class="js-select2" required><option value="">Pilih akun</option>@foreach($accounts as $a)<option value="{{ $a->id }}" @selected((string)old('chart_account_id',$receipt->chart_account_id)===(string)$a->id)>{{ $a->code }} - {{ $a->name }}</option>@endforeach</select></div>
+ <div class="field"><label>Sumber / Penjamin</label><select name="guarantor_id" class="js-select2" @required($isInsurance)><option value="">{{ $isInsurance ? 'Pilih penjamin asuransi' : 'Tanpa penjamin' }}</option>@foreach($guarantors as $g)<option value="{{ $g->id }}" @selected((string)old('guarantor_id',$receipt->guarantor_id)===(string)$g->id)>{{ $g->name }}</option>@endforeach</select></div>
+ <div class="field"><label>Jenis Pelayanan</label><select name="service_type"><option value="">Tidak ditentukan</option>@foreach(['RAWAT_JALAN'=>'Rawat Jalan','RAWAT_INAP'=>'Rawat Inap','MCU'=>'MCU','LAINNYA'=>'Lainnya'] as $key=>$label)<option value="{{ $key }}" @selected(old('service_type',$receipt->service_type)===$key)>{{ $label }}</option>@endforeach</select></div>
+ <div class="field" style="grid-column:1/-1"><label>Keterangan * (termasuk nama pasien jika ada)</label><textarea name="notes" maxlength="1000" required placeholder="Contoh: Pembayaran Poli IGD atas nama ...">{{ old('notes',$receipt->notes) }}</textarea></div>
+ <div class="field"><label>Nama Dokter</label><input name="doctor_name" value="{{ old('doctor_name',$receipt->doctor_name) }}"></div>
+ <div class="field"><label>HD (opsional)</label><input name="hd" value="{{ old('hd',$receipt->hd) }}"></div>
+ <div class="field"><label>RS (opsional)</label><input name="rs" value="{{ old('rs',$receipt->rs) }}"></div>
+ <div class="field"><label>Jumlah Penerimaan *</label><input type="number" min="0.01" step="0.01" name="amount" value="{{ old('amount',$receipt->amount) }}" required></div>
+</div>
+<div style="margin-top:18px;display:flex;gap:10px"><button type="submit" class="btn primary">Simpan Penerimaan</button><a class="btn" href="{{ route($routePrefix . '.index') }}">Batal</a></div>
 </form></div>
 @endsection

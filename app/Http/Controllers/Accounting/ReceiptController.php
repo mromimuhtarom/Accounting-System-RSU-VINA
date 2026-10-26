@@ -7,6 +7,7 @@ use App\Models\ChartAccount;
 use App\Models\Receipt;
 use App\Services\JournalService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ReceiptController extends Controller
 {
@@ -193,13 +194,13 @@ class ReceiptController extends Controller
             || $user->hasRole('KEPALA_KEUANGAN', $application)), 403);
     }
 
-    private function validatedData(
+    public function validatedData(
         Request $request,
         bool $includeStatus = false
     ): array {
         $rules = [
             'transaction_date' => ['required', 'date'],
-            'chart_account_id' => ['required', 'exists:chart_accounts,id'],
+            'chart_account_id' => ['required', Rule::exists('chart_accounts', 'id')->where('type', 'REVENUE')->where('is_active', 1)],
             'notes' => ['required', 'string', 'max:1000'],
             'doctor_name' => ['nullable', 'string', 'max:150'],
             'hd' => ['nullable', 'string', 'max:100'],
@@ -217,6 +218,7 @@ class ReceiptController extends Controller
     private function accounts()
     {
         return ChartAccount::where('is_active', true)
+            ->where('type', 'REVENUE')
             ->orderBy('code')
             ->get();
     }

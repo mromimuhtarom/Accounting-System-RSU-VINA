@@ -1,0 +1,15 @@
+<!doctype html><meta charset="utf-8"><style>body{margin:0;font-family:Arial}.card{padding:20px;border:1px solid #ccc}.page-head{margin-bottom:20px}.stat{font-weight:bold}.stats-grid{display:grid}</style>
+<script src="../../public/js/vendor/html2pdf.bundle.min.js"></script>
+<div style="height:800px"></div>
+<button id="export-report-pdf" data-filename="test.pdf" data-landscape="0" data-period="2025-10" data-hospital="RS Vina Estetica" data-logo="../../public/images/vina-estetica-logo.png">Export PDF</button><span id="report-pdf-status"></span>
+<div id="report-pdf-content"><div class="page-head"><h1>Laporan Keuangan Bulanan â€” judul utuh</h1><form>Filter</form></div><div id="edge-marker" style="height:40px;background:linear-gradient(to right, rgb(255,0,0) 0 10px, white 10px calc(100% - 10px), rgb(0,128,0) calc(100% - 10px) 100%)">LEFT â€” Total Pemasukan Rp 2.223.963.800 â€” RIGHT</div><div class="card"><h3>Grafik Perbandingan Bulanan</h3><div style="height:20px;background:#009c70;width:100%"></div></div></div>
+<script>
+const yearly=new URLSearchParams(location.search).has('yearly');
+document.getElementById('export-report-pdf').dataset.landscape=yearly?'1':'0';
+const original=window.html2pdf;
+const checks=[];
+window.html2pdf=function(...args){const worker=original(...args);const setter=worker.set;worker.set=function(options){if(options?.html2canvas){options.html2canvas.onrendered=function(canvas){if(canvas.height===80){const context=canvas.getContext('2d');const left=[...context.getImageData(2,40,1,1).data];const right=[...context.getImageData(canvas.width-3,40,1,1).data];checks.push({width:canvas.width,left,right,passed:left[0]===255&&left[1]===0&&right[0]===0&&right[1]===128});window.preview=canvas.toDataURL();}};}return setter.call(this,options);};return worker;};
+const createURL=URL.createObjectURL.bind(URL); URL.createObjectURL=function(blob){if(blob.type!=="application/pdf") return createURL(blob);blob.arrayBuffer().then(buffer=>{const text=new TextDecoder('latin1').decode(buffer);const result=document.createElement('pre');result.id='result';result.textContent=JSON.stringify({checks,bytes:buffer.byteLength,pages:(text.match(/\/Type \/Page\b/g)||[]).length});document.body.replaceChildren(result);if(window.preview){const img=document.createElement('img');img.src=window.preview;img.style.width='95%';document.body.append(img);}});return 'blob:test';};
+</script>
+<script src="../../public/js/report-pdf.js"></script>
+<script>window.addEventListener('load',()=>{scrollTo(0,500);document.getElementById('export-report-pdf').click();});</script>

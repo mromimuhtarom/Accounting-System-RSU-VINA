@@ -49,8 +49,6 @@ class InsuranceExcelController extends Controller
     public function expenses(Request $request)
     {
         $query = Expense::with(['category','cashBankAccount','account']);
-        $role = strtoupper((string) ($request->user()?->accountingRole() ?? ''));
-        if ($role === 'KASIR') $query->where('created_by', $request->user()->id)->where('expense_type','GENERAL');
         if ($request->filled('date_from')) $query->whereDate('expense_date','>=',$request->date_from);
         if ($request->filled('date_to')) $query->whereDate('expense_date','<=',$request->date_to);
         if ($request->filled('q')) {

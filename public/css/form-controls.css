@@ -1,0 +1,8 @@
+.password-control{position:relative;display:flex;align-items:center;width:100%;min-width:0}
+.field .password-control input{padding-right:58px;min-height:50px}
+.password-toggle{position:absolute;right:4px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:44px;height:44px;border:0;border-radius:8px;background:transparent;color:#254d43;cursor:pointer}
+.password-toggle:hover{background:#eaf5ef}
+.password-toggle:focus-visible{outline:3px solid #176baf;outline-offset:1px}
+.password-toggle svg{width:24px;height:24px;pointer-events:none}
+.money-input{text-align:right;font-variant-numeric:tabular-nums;min-width:0}
+.money-input[aria-invalid=true]{border-color:#a32020}

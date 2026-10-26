@@ -12,6 +12,7 @@ class DashboardController extends Controller
     public function __invoke(Request $request)
     {
         $role = strtoupper(trim((string) ($request->user()->accountingRole() ?? '')));
+        if ($role === 'IT') return app(\App\Http\Controllers\IT\DashboardController::class)->index($request);
         if ($role === 'ASURANSI') {
             $year = max(2020,min(2100,(int)$request->input('year',now()->year)));
             $monthly = InsuranceMonthlyClaim::where('year',$year)->selectRaw('month, SUM(claimed_amount) total')->groupBy('month')->pluck('total','month');
@@ -44,25 +45,23 @@ class DashboardController extends Controller
         }
 
         if (in_array($role, ['ACCOUNTING','ADMIN_ACCOUNTING','ATASAN','FINANCE','KEPALA_KEUANGAN','DIREKTUR','OWNER'])) {
+            $period = [sprintf('%04d-01-01', $year), sprintf('%04d-12-31', $year)];
             $active = Receipt::query()->where('receipts.status','ACTIVE')
-                ->whereYear('receipts.transaction_date', $year);
+                ->whereBetween('receipts.transaction_date', $period);
             // GUARANTOR menunjukkan mekanisme penjamin/tagihan, bukan bukti uang telah cair.
             // NULL harus ditinjau manual. Jangan dipindah otomatis menjadi kas atau BPJS.
-            $cash = (clone $active)->whereIn('receipts.payment_method', ['CASH','TRANSFER','QRIS','CARD']);
-            $tagihan = (clone $active)->where('receipts.payment_method', 'GUARANTOR');
-            $unknown = (clone $active)->whereNull('receipts.payment_method');
-            $stats = [
-                'income' => (clone $cash)->sum('receipts.amount'),
-                'expense' => Expense::where('status','ACTIVE')->whereYear('expense_date', $year)->sum('amount'),
-                'transactions' => (clone $cash)->count(),
-                'tagihan' => (clone $tagihan)->sum('receipts.amount'),
-                'tagihan_count' => (clone $tagihan)->count(),
-                'unknown_method' => (clone $unknown)->sum('receipts.amount'),
-                'unknown_method_count' => (clone $unknown)->count(),
-                'unclassified' => (clone $cash)->whereNull('receipts.guarantor_id')->sum('receipts.amount'),
-                'total_records' => (clone $active)->sum('receipts.amount'),
-                'total_record_count' => (clone $active)->count(),
-            ];
+            // One scan keeps all figures current without repeated aggregate queries.
+            $stats = (clone $active)->selectRaw("
+                COALESCE(SUM(CASE WHEN payment_method IN ('CASH','TRANSFER','QRIS','CARD') THEN amount ELSE 0 END),0) AS income,
+                COUNT(CASE WHEN payment_method IN ('CASH','TRANSFER','QRIS','CARD') THEN 1 END) AS transactions,
+                COALESCE(SUM(CASE WHEN payment_method = 'GUARANTOR' THEN amount ELSE 0 END),0) AS tagihan,
+                COUNT(CASE WHEN payment_method = 'GUARANTOR' THEN 1 END) AS tagihan_count,
+                COALESCE(SUM(CASE WHEN payment_method IS NULL THEN amount ELSE 0 END),0) AS unknown_method,
+                COUNT(CASE WHEN payment_method IS NULL THEN 1 END) AS unknown_method_count,
+                COALESCE(SUM(CASE WHEN payment_method IN ('CASH','TRANSFER','QRIS','CARD') AND guarantor_id IS NULL THEN amount ELSE 0 END),0) AS unclassified,
+                COALESCE(SUM(amount),0) AS total_records, COUNT(*) AS total_record_count
+            ")->first()->getAttributes();
+            $stats['expense'] = Expense::where('status','ACTIVE')->whereBetween('expense_date', $period)->sum('amount');
             // Komposisi seluruh penerimaan TERCATAT (bukan klaim sebagai kas cair). Termasuk penjamin
             // yang sudah tidak aktif, dan penjamin kosong/ID tidak ditemukan.
             $guarantorComposition = (clone $active)
@@ -71,8 +70,8 @@ class DashboardController extends Controller
                 ->groupBy('guarantors.id', 'guarantors.name')
                 ->orderByDesc('total')->get();
 
-            $latestReceipts = Receipt::with(['patient','serviceUnit','guarantor','cashier'])
-                ->where('status','ACTIVE')->whereYear('transaction_date',$year)
+            $latestReceipts = Receipt::with(['patient','serviceUnit','guarantor','cashier','cashBankAccount'])
+                ->where('status','ACTIVE')->whereBetween('transaction_date', $period)
                 ->orderByDesc('transaction_date')->orderByDesc('id')->limit(8)->get();
         }
         return view('dashboard', compact('role','stats','latestReceipts','guarantorComposition','year'));

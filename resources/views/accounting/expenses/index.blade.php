@@ -2,7 +2,8 @@
 @section('content')
 <div class="card">
     <div class="actions">
-        <h2 style="flex:1">Pengeluaran</h2>
+        <a class="btn" href="{{ route($isCashier ? 'cashier.excel-import' : 'accounting.excel-import', ['module'=>'expenses']) }}">Import Excel</a>
+        <h2 style="flex:1">Semua Data Pengeluaran</h2>
 
         <a class="btn primary" href="{{ route($routePrefix . '.create') }}">Tambah Pengeluaran</a>
         <a class="btn" href="{{ route('excel.expenses', request()->except('page')) }}" style="background:#e8f6ed;color:#087344;border:1px solid #a3d8bb;font-weight:700">↓ Export Excel Sesuai Filter</a>
@@ -38,6 +39,7 @@
                     <th>Keterangan</th>
                     <th>Kas/Bank</th>
                     <th>Nominal</th>
+                    <th>Petugas Input</th>
                     <th>Aksi</th>
                 </tr>
             </thead>
@@ -64,41 +66,49 @@
                     </td>
                     <td>{{ $e->cashBankAccount?->name }}</td>
                     <td class="money">Rp {{ number_format($e->amount, 0, ',', '.') }}</td>
+                    <td>{{ $e->creator?->name ?? '-' }}</td>
                     <td>
-                        @if(!$e->journal)
                             <div class="actions">
                                 @if($e->expense_type === 'REFERRAL')
-                                    @unless($isCashier)
+                                    @if($e->journal || $isCashier)
+                                        <span class="muted">Dikelola melalui modul Referal</span>
+                                    @else
                                         <a class="btn" href="{{ route('accounting.referrals.edit', $e) }}">Edit</a>
                                         <form method="POST" action="{{ route('accounting.referrals.journal', $e) }}">
                                             @csrf
                                             <button class="btn" type="submit">Buat Jurnal</button>
                                         </form>
-                                    @endunless
+                                    @endif
                                 @else
+                                    @if(auth()->user()->canManageTransaction($e->created_by))
                                     <a class="btn" href="{{ route($routePrefix . '.edit', $e) }}">Edit</a>
-                                    <form method="POST" action="{{ route($routePrefix . '.destroy', $e) }}" onsubmit="return confirm('Hapus pengeluaran {{ $e->expense_no }}?')">
+                                    <form method="POST" action="{{ route($routePrefix . '.destroy', $e) }}" onsubmit="return confirm('Hapus pengeluaran ini? Jurnal terkait juga akan dihapus. Tindakan ini tidak dapat dibatalkan.')">
                                         @csrf
                                         @method('DELETE')
-                                        <button class="btn danger" type="submit">Delete</button>
+                                        <button class="btn danger" type="submit">Hapus</button>
                                     </form>
 
                                     @unless($isCashier)
+                                        @unless($e->journal)
                                         <form method="POST" action="{{ route('accounting.pengeluaran.journal', $e) }}">
                                             @csrf
                                             <button class="btn" type="submit">Buat Jurnal</button>
                                         </form>
+                                        @endunless
                                     @endunless
+                                    @if($e->journal)
+                                        <span class="badge">Sudah dijurnal</span>
+                                    @endif
+                                    @else
+                                        <span class="muted">Hanya lihat — diinput oleh petugas lain</span>
+                                    @endif
                                 @endif
                             </div>
-                        @else
-                            <span class="muted">Sudah dijurnal</span>
-                        @endif
                     </td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="8" class="muted">Belum ada transaksi pengeluaran.</td>
+                    <td colspan="9" class="muted">Belum ada transaksi pengeluaran.</td>
                 </tr>
             @endforelse
             </tbody>

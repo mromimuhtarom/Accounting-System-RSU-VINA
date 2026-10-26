@@ -1,7 +1,33 @@
 @extends('layouts.app')
 @section('content')
-<div class="card"><h2>Edit Penerimaan</h2><form method="POST" action="{{ route('accounting.receipts.update',$receipt) }}">@csrf @method('PUT')<div class="form-grid">
-<div class="field"><label>Tanggal</label><input type="date" name="transaction_date" value="{{ old('transaction_date',$receipt->transaction_date->format('Y-m-d')) }}" required></div>
-<div class="field"><label>Pasien</label><select name="patient_id" required><option value="">Pilih pasien</option>@foreach($patients as $p)<option value="{{ $p->id }}" @selected(old('patient_id',$receipt->patient_id)==$p->id)>{{ $p->medical_record_no }} - {{ $p->name }}</option>@endforeach</select></div>
-<div class="field"><label>Unit</label><select name="service_unit_id">@foreach($units as $x)<option value="{{ $x->id }}" @selected($receipt->service_unit_id==$x->id)>{{ $x->name }}</option>@endforeach</select></div><div class="field"><label>Penjamin</label><select name="guarantor_id">@foreach($guarantors as $x)<option value="{{ $x->id }}" @selected($receipt->guarantor_id==$x->id)>{{ $x->name }}</option>@endforeach</select></div><div class="field"><label>Jenis Pelayanan</label><input name="service_type" value="{{ old('service_type',$receipt->service_type) }}"></div><div class="field"><label>Nominal</label><input type="number" step="0.01" name="amount" value="{{ old('amount',$receipt->amount) }}"></div><div class="field"><label>Metode</label><select name="payment_method">@foreach(['CASH'=>'Cash','TRANSFER'=>'Transfer','QRIS'=>'QRIS','CARD'=>'Debit/Kartu','GUARANTOR'=>'Penjamin'] as $k=>$v)<option value="{{ $k }}" @selected($receipt->payment_method===$k)>{{ $v }}</option>@endforeach</select></div><div class="field"><label>Kas/Bank</label><select name="cash_bank_account_id"><option value="">-</option>@foreach($cashBanks as $x)<option value="{{ $x->id }}" @selected($receipt->cash_bank_account_id==$x->id)>{{ $x->name }}</option>@endforeach</select></div><div class="field"><label>Status</label><select name="status"><option value="ACTIVE" @selected($receipt->status==='ACTIVE')>Active</option><option value="CANCELLED" @selected($receipt->status==='CANCELLED')>Cancelled</option></select></div><div class="field" style="grid-column:1/-1"><label>Keterangan</label><textarea name="notes">{{ old('notes',$receipt->notes) }}</textarea></div></div><button class="btn primary">Simpan</button></form></div>
+<div class="page-head">
+    <div><h1 class="page-title">Edit Penerimaan</h1><p class="page-sub">Periksa data penerimaan sebelum menyimpan perubahan.</p></div>
+    <a class="btn" href="{{ route('accounting.receipts.index') }}">Lihat Semua Penerimaan</a>
+</div>
+<div class="card">
+    <form method="POST" action="{{ route('accounting.receipts.update', $receipt) }}">
+        @csrf
+        @method('PUT')
+        <div class="form-grid">
+            <div class="field"><label for="receipt-number">Nomor transaksi</label><input id="receipt-number" value="{{ $receipt->transaction_no }}" disabled></div>
+            <div class="field"><label for="receipt-date">Tanggal</label><input id="receipt-date" type="date" name="transaction_date" value="{{ old('transaction_date', $receipt->transaction_date->format('Y-m-d')) }}" required></div>
+            <div class="field">
+                <label for="receipt-account">Kode / Chart of Accounts</label>
+                <select id="receipt-account" name="chart_account_id" required>
+                    <option value="">Pilih akun</option>
+                    @foreach($accounts as $account)
+                        <option value="{{ $account->id }}" @selected((string) old('chart_account_id', $receipt->chart_account_id) === (string) $account->id)>{{ $account->code }} - {{ $account->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="field"><label for="receipt-amount">Jumlah penerimaan</label><input id="receipt-amount" type="number" min="0.01" step="0.01" name="amount" value="{{ old('amount', $receipt->amount) }}" required></div>
+            <div class="field" style="grid-column:1/-1"><label for="receipt-notes">Keterangan (termasuk nama pasien jika ada)</label><textarea id="receipt-notes" name="notes" maxlength="1000" required>{{ old('notes', $receipt->notes) }}</textarea></div>
+            <div class="field"><label for="receipt-doctor">Nama dokter</label><input id="receipt-doctor" name="doctor_name" value="{{ old('doctor_name', $receipt->doctor_name) }}"></div>
+            <div class="field"><label for="receipt-hd">HD (opsional)</label><input id="receipt-hd" name="hd" value="{{ old('hd', $receipt->hd) }}"></div>
+            <div class="field"><label for="receipt-rs">RS (opsional)</label><input id="receipt-rs" name="rs" value="{{ old('rs', $receipt->rs) }}"></div>
+            <div class="field"><label for="receipt-status">Status</label><select id="receipt-status" name="status" required><option value="ACTIVE" @selected(old('status', $receipt->status) === 'ACTIVE')>Aktif</option><option value="CANCELLED" @selected(old('status', $receipt->status) === 'CANCELLED')>Dibatalkan</option></select></div>
+        </div>
+        <div class="actions" style="margin-top:18px"><button class="btn primary" type="submit">Simpan Penerimaan</button><a class="btn" href="{{ route('accounting.receipts.index') }}">Batal</a></div>
+    </form>
+</div>
 @endsection

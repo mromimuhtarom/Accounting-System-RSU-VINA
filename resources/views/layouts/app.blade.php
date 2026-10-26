@@ -6,8 +6,9 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <meta name="theme-color" content="#071f2d">
 <title>{{ $title ?? 'Accounting System' }} | {{ config('accounting.hospital_name', 'RS. Vina Estetica') }}</title>
-<link rel="stylesheet" href="{{ asset('public/css/accounting.css') }}">
-<link rel="stylesheet" href="{{ asset('css/searchable-select.css') }}?v=20260819-2">
+<link rel="stylesheet" href="{{ asset('public/css/accounting.css') }}?v=20261025-perf-1">
+<link rel="stylesheet" href="{{ asset('public/css/form-controls.css') }}?v=20261025-1">
+<link rel="stylesheet" href="{{ asset('public/css/searchable-select.css') }}?v=20261025-1">
 <style>
 /* RSUVE: tombol sidebar desktop + mobile; tidak mengubah menu atau role. */
 .sidebar-toggle-btn{
@@ -104,12 +105,17 @@
 
             @if(in_array($role,['ASURANSI','ACCOUNTING','ADMIN_ACCOUNTING','KEPALA_KEUANGAN','OWNER','DIREKTUR']))
                 <div class="menu-label">Piutang</div>
-                <a class="{{request()->routeIs('insurance.*')?'active':''}}" href="{{route('insurance.index')}}"><span class="menu-icon">▤</span> Klaim & Piutang Asuransi</a>
+                <a class="{{request()->routeIs('insurance.*') && !request()->routeIs('insurance.receipts.*') ? 'active' : ''}}" href="{{route('insurance.index')}}"><span class="menu-icon">▤</span> Klaim & Piutang Asuransi</a>
             @endif
             @if($role==='ASURANSI')
+                <div class="menu-label">Transaksi</div>
+                <a class="{{ request()->routeIs('insurance.receipts.index', 'insurance.receipts.edit') ? 'active' : '' }}" href="{{ route('insurance.receipts.index') }}">Penerimaan Asuransi</a>
+                <a class="{{ request()->routeIs('insurance.receipts.create') ? 'active' : '' }}" href="{{ route('insurance.receipts.create') }}">Input Penerimaan Asuransi</a>
                 <div class="menu-label">Master Penjamin</div><a href="{{route('accounting.master.index','guarantors')}}"><span class="menu-icon">◇</span> Kelola Penjamin Asuransi</a>
             @endif
             @if($role === 'IT')
+                <a class="{{ request()->routeIs('it.session-logs.*') ? 'active' : '' }}" href="{{ route('it.session-logs.index') }}"><span class="menu-icon" aria-hidden="true">&#9776;</span> Log Login / Logout</a>
+                <a class="{{ request()->routeIs('it.activity-logs.*') ? 'active' : '' }}" href="{{ route('it.activity-logs.index') }}"><span class="menu-icon" aria-hidden="true">&#9776;</span> Log Perubahan Data</a>
                 <div class="menu-label">System</div>
                 <a class="{{ request()->routeIs('it.users.*') ? 'active' : '' }}" href="{{ route('it.users.index') }}"><span class="menu-icon">♙</span> Manajemen Akun</a>
             @endif
@@ -198,8 +204,14 @@
     syncSidebar();
 })();
 </script>
-<script src="{{ asset('public/js/accounting-ui.js') }}?v=20260819-design-1"></script>
-<script src="{{ asset('js/searchable-select.js') }}?v=20260819-2"></script>
+<script src="{{ asset('public/js/accounting-ui.js') }}?v=20261025-perf-1"></script>
+<script src="{{ asset('public/js/searchable-select.js') }}?v=20261025-1"></script>
 @stack('scripts')
+<script src="{{ asset('public/js/form-controls.js') }}?v=20261025-1"></script>
+<script src="{{ asset('public/js/idle-session.js') }}?v=20261025-1"
+    data-activity-url="{{ route('session.activity') }}" data-logout-url="{{ route('logout') }}"
+    data-login-url="{{ route('login', ['expired' => 1]) }}"
+    data-timeout="{{ (int) config('session.lifetime', 120) * 1000 * 60 }}"
+    data-activity-key="rsuve-activity-{{ hash('sha256', session()->getId()) }}"></script>
 </body>
 </html>

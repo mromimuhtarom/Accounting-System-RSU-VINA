@@ -51,11 +51,11 @@ class PatientController extends Controller
 
             // Kolom snapshot lama tetap disinkronkan agar pencarian/data legacy ikut berubah.
             // Relasi patient_id tetap menjadi sumber data utama.
-            Receipt::where('patient_id', $patient->id)->update([
+            Receipt::where('patient_id', $patient->id)->each(fn ($receipt) => $receipt->update([
                 'medical_record_no' => $patient->medical_record_no,
                 'patient_name' => $patient->name,
                 'updated_at' => now(),
-            ]);
+            ]));
         });
 
         return redirect()->route('cashier.patients.index')->with('success', 'Data pasien berhasil diperbarui. Penerimaan dan pengeluaran terkait otomatis menggunakan data pasien terbaru.');

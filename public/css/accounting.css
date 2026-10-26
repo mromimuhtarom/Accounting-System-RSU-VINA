@@ -389,3 +389,7 @@ td strong{color:#1b3548}
 
 .card:has(.searchable-select.open), .content-card:has(.searchable-select.open), .filter-card:has(.searchable-select.open),
 .form-card:has(.searchable-select.open), .report-card:has(.searchable-select.open) {transform: none !important;perspective: none !important;filter: none !important;overflow: visible !important;z-index: 9998 !important;}
+/* Keep routine navigation and scrolling inexpensive on shared office devices. */
+.brand img,.login-brand img{animation:none}
+.topbar{backdrop-filter:none;background:#fff}
+.page-transition{display:none}

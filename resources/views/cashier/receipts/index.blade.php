@@ -2,16 +2,19 @@
 
 @section('content')
 <div class="page-head">
+    <a class="btn" href="{{ $isInsurance ? route('insurance.receipts.excel-import') : route('cashier.excel-import', ['module'=>'receipts']) }}">Import Excel</a>
     <div>
-        <h1 class="page-title">Semua Data Penerimaan</h1>
-        <p class="page-sub">Kasir dapat melihat seluruh penerimaan. Edit dan hapus hanya tersedia untuk transaksi milik sendiri yang belum dijurnal.</p>
+        <h1 class="page-title">{{ $isInsurance ? 'Penerimaan Asuransi' : 'Semua Data Penerimaan' }}</h1>
+        <p class="page-sub">{{ $isInsurance ? 'Menampilkan penerimaan BPJS, asuransi, dan penjamin sesuai kategori modul Asuransi.' : 'Kasir dapat melihat seluruh penerimaan.' }} Edit dan hapus hanya tersedia untuk transaksi milik sendiri yang belum dijurnal.</p>
     </div>
-    <a class="btn primary" href="{{ route('cashier.receipts.create') }}">＋ Input Pemasukan</a>
+    <a class="btn primary" href="{{ route($routePrefix . '.create') }}">＋ Input Pemasukan</a>
+    @unless($isInsurance)
     <a class="btn" href="{{ route('excel.receipts', request()->except('page')) }}" style="background:#e8f6ed;color:#087344;border:1px solid #a3d8bb;font-weight:700">↓ Export Excel Sesuai Filter</a>
+    @endunless
 </div>
 
 <div class="card">
-    <form class="form-grid" method="GET" action="{{ route('cashier.receipts.index') }}">
+    <form class="form-grid" method="GET" action="{{ route($routePrefix . '.index') }}">
         <div class="field">
             <label>Dari Tanggal</label>
             <input type="date" name="date_from" value="{{ request('date_from') }}">
@@ -51,7 +54,7 @@
 
         <div style="align-self:end;display:flex;gap:8px">
             <button class="btn" type="submit">Filter</button>
-            <a class="btn" href="{{ route('cashier.receipts.index') }}">Reset</a>
+            <a class="btn" href="{{ route($routePrefix . '.index') }}">Reset</a>
         </div>
     </form>
 </div>
@@ -98,12 +101,12 @@
                         @endif
                     </td>
                     <td>
-                        @if((int) $r->cashier_id === (int) auth()->id() && !$r->journal && !in_array($r->id, $bpjsLinkedIds))
+                        @if(($isInsurance ? (int)$r->cashier_id === (int)auth()->id() : auth()->user()->canManageTransaction($r->cashier_id)) && !$r->journal && !in_array($r->id, $bpjsLinkedIds))
                             <div class="actions">
-                                <a class="btn" href="{{ route('cashier.receipts.edit', $r) }}">Edit</a>
+                                <a class="btn" href="{{ route($routePrefix . '.edit', $r) }}">Edit</a>
 
                                 @if(!$r->referralExpense)
-                                    <form method="POST" action="{{ route('cashier.receipts.destroy', $r) }}" onsubmit="return confirm('Hapus pemasukan {{ $r->transaction_no }}?')">
+                                    <form method="POST" action="{{ route($routePrefix . '.destroy', $r) }}" onsubmit="return confirm('Hapus pemasukan {{ $r->transaction_no }}?')">
                                         @csrf
                                         @method('DELETE')
                                         <button class="btn danger" type="submit">Delete</button>

@@ -55,7 +55,7 @@
             const search = document.createElement('input');
             search.type = 'search';
             search.className = 'ss-search';
-            search.placeholder = select.dataset.searchPlaceholder || 'Cari pilihan...';
+            search.placeholder = select.dataset.searchPlaceholder || select.dataset.placeholder || 'Cari pilihan...';
             search.autocomplete = 'off';
             search.setAttribute('aria-label', 'Cari pilihan');
 
@@ -74,6 +74,19 @@
             select.parentNode.insertBefore(wrapper, select);
             wrapper.append(select, control, panel);
             select.classList.add('ss-native');
+            select.tabIndex = -1;
+            const label = select.labels?.[0];
+            if (label) {
+                if (!label.id) label.id = `ss-label-${select.id || Math.random().toString(36).slice(2)}`;
+                control.setAttribute('aria-labelledby', label.id);
+                label.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    control.focus();
+                });
+            }
+            if (select.getAttribute('aria-describedby')) {
+                control.setAttribute('aria-describedby', select.getAttribute('aria-describedby'));
+            }
 
             this.wrapper = wrapper;
             this.control = control;
@@ -257,7 +270,7 @@
         if (active && !active.wrapper.contains(event.target)) active.close();
     });
 
-    document.addEventListener('DOMContentLoaded', () => {
+    function initialize() {
         enhance();
 
         const pageObserver = new MutationObserver((mutations) => {
@@ -270,5 +283,10 @@
             }
         });
         pageObserver.observe(document.body, { childList: true, subtree: true });
-    });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initialize, { once: true });
+    } else {
+        initialize();
+    }
 })();
