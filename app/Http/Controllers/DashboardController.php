@@ -74,6 +74,10 @@ class DashboardController extends Controller
                 ->where('status','ACTIVE')->whereBetween('transaction_date', $period)
                 ->orderByDesc('transaction_date')->orderByDesc('id')->limit(8)->get();
         }
-        return view('dashboard', compact('role','stats','latestReceipts','guarantorComposition','year'));
+        $referralSummary = collect();
+        if (in_array($role, ['KASIR','ACCOUNTING','ADMIN_ACCOUNTING','KEPALA_KEUANGAN','ATASAN','FINANCE','DIREKTUR','OWNER'], true)) {
+            $referralSummary = app(\App\Services\ReferralSummary::class)->rows(sprintf('%04d-01-01', $year), sprintf('%04d-12-31', $year));
+        }
+        return view('dashboard', compact('role','stats','latestReceipts','guarantorComposition','year','referralSummary'));
     }
 }

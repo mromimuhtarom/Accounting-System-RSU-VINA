@@ -4,7 +4,7 @@
 @php
     $masterRole = strtoupper(trim((string) (auth()->user()?->accountingRole() ?? '')));
     $canManageMaster = $type === 'accounts'
-        ? in_array($masterRole, ['IT', 'ACCOUNTING', 'ADMIN_ACCOUNTING'], true)
+        ? in_array($masterRole, ['ACCOUNTING', 'KEPALA_KEUANGAN', 'ADMIN_ACCOUNTING', 'KASIR'], true)
         : (in_array($masterRole, ['IT', 'ACCOUNTING', 'ADMIN_ACCOUNTING', 'KEPALA_KEUANGAN', 'KASIR'], true)
            || ($masterRole === 'ASURANSI' && $type === 'guarantors'));
     $form = $editingItem ?? null;
@@ -26,6 +26,13 @@
     </div>
 </div>
 
+@if($type === 'accounts')
+<div class="card actions">
+    <a class="btn" href="{{ route('accounting.master.index', 'accounts') }}">Semua COA</a>
+    <a class="btn" href="{{ route('accounting.master.index', ['accounts', 'group'=>'general']) }}">COA Umum</a>
+    <a class="btn" href="{{ route('accounting.master.index', ['accounts', 'group'=>'referral']) }}">COA Referal</a>
+</div>
+@endif
 @if($canManageMaster)
 <div class="card">
     <h3>{{ $form ? 'Edit Data' : 'Tambah Data' }}</h3>
@@ -43,6 +50,7 @@
             </div>
 
             @if($type === 'accounts')
+                <div class="field"><label>Kelompok COA</label><select name="is_referral"><option value="0" @selected(!old('is_referral',$form?->is_referral))>Umum</option><option value="1" @selected(old('is_referral',$form?->is_referral))>Referal</option></select></div>
                 <div class="field"><label>Type</label><select name="type">@foreach(['ASSET','LIABILITY','EQUITY','REVENUE','EXPENSE'] as $x)<option value="{{ $x }}" @selected(old('type',$form?->type)===$x)>{{ $x }}</option>@endforeach</select></div>
                 <div class="field"><label>Normal Balance</label><select name="normal_balance"><option value="DEBIT" @selected(old('normal_balance',$form?->normal_balance ?? 'DEBIT')==='DEBIT')>DEBIT</option><option value="CREDIT" @selected(old('normal_balance',$form?->normal_balance)==='CREDIT')>CREDIT</option></select></div>
                 <div class="field"><label>Parent</label><select name="parent_id"><option value="">-</option>@foreach($accounts->where('id','!=',$form?->id) as $a)<option value="{{ $a->id }}" @selected((string)old('parent_id',$form?->parent_id)===(string)$a->id)>{{ $a->code }} - {{ $a->name }}</option>@endforeach</select></div>
@@ -92,7 +100,7 @@
             <tbody>
                 @foreach($items as $x)
                     <tr>
-                        <td>{{ $x->code }}</td><td>{{ $x->name }}</td>
+                        <td>{{ $x->code }}</td><td>{{ $x->name }} @if($type === 'accounts' && $x->is_referral)<span class="badge">Referal</span>@endif</td>
                         @if($type === 'financial-groups')<td>{{ $x->type === 'INCOME' ? 'Pemasukan' : 'Pengeluaran' }}</td><td>{{ $x->sort_order }}</td>@endif
                         @if(in_array($type,['guarantors','expense-categories']))<td>{{ $x->financialGroup?->name ?? '-' }}</td>@endif
                         <td>{{ $x->is_active ? 'Active' : 'Inactive' }}</td>

@@ -37,6 +37,8 @@ class ReportController extends Controller
         $expenseGroups = FinancialGroup::where('type', 'EXPENSE')->where('is_active', true)
             ->orderBy('sort_order')->orderBy('name')->get();
 
+        $expenseGroups = $this->includeUnmappedReferralGroup($expenseGroups, $expenses);
+        $referralSummary = app(\App\Services\ReferralSummary::class)->rows($start->toDateString(), $end->toDateString());
         $income = $this->buildMonthlyIncome($incomeGroups, $receipts);
         $expense = $this->buildMonthlyExpense($expenseGroups, $expenses);
         $totalIncome = (float) $income->sum('total');
@@ -66,7 +68,7 @@ class ReportController extends Controller
             })->values();
 
         return view('reports.monthly', compact(
-            'month', 'year', 'start', 'income', 'expense', 'totalIncome', 'totalExpense', 'surplus', 'claimsByGuarantor'
+            'month', 'year', 'start', 'income', 'expense', 'totalIncome', 'totalExpense', 'surplus', 'claimsByGuarantor', 'referralSummary'
         ));
     }
 
@@ -91,6 +93,8 @@ class ReportController extends Controller
         $expenseGroups = FinancialGroup::where('type', 'EXPENSE')->where('is_active', true)
             ->orderBy('sort_order')->orderBy('name')->get();
 
+        $expenseGroups = $this->includeUnmappedReferralGroup($expenseGroups, $expenses);
+        $referralSummary = app(\App\Services\ReferralSummary::class)->rows($start->toDateString(), $end->toDateString());
         $income = $this->buildYearlyIncome($incomeGroups, $receipts);
         $expense = $this->buildYearlyExpense($expenseGroups, $expenses);
 
@@ -107,7 +111,7 @@ class ReportController extends Controller
 
         return view('reports.yearly', compact(
             'year', 'income', 'expense', 'incomeMonths', 'expenseMonths', 'surplusMonths',
-            'totalIncome', 'totalExpense', 'surplus'
+            'totalIncome', 'totalExpense', 'surplus', 'referralSummary'
         ));
     }
 
@@ -129,6 +133,10 @@ class ReportController extends Controller
         $isIncome = $kind === 'income';
         $groups = FinancialGroup::where('type', $isIncome ? 'INCOME' : 'EXPENSE')
             ->where('is_active', true)->orderBy('sort_order')->get();
+        if (!$isIncome) {
+            $groups = $this->includeUnmappedReferralGroup($groups, Expense::with('category')->where('expense_type', 'REFERRAL')
+                ->where('status', 'ACTIVE')->whereBetween('expense_date', [$start, $end])->get());
+        }
         $selectedGroup = null;
         if ($groupCode !== 'all') {
             $selectedGroup = $groups->firstWhere('code', $groupCode);
@@ -145,9 +153,11 @@ class ReportController extends Controller
                     ? $this->receiptBelongsToIncomeGroup($record, $selectedGroup)
                     : $groups->contains(fn ($group) => $this->receiptBelongsToIncomeGroup($record, $group));
             }
+            $unmappedReferral = $record->expense_type === 'REFERRAL'
+                && !$groups->where('id', '!=', -1)->contains('id', $record->category?->financial_group_id);
             return $selectedGroup
-                ? (int) ($record->category?->financial_group_id ?? 0) === (int) $selectedGroup->id
-                : $groups->contains(fn ($group) => (int) ($record->category?->financial_group_id ?? 0) === (int) $group->id);
+                ? ($selectedGroup->id === -1 ? $unmappedReferral : (int) ($record->category?->financial_group_id ?? 0) === (int) $selectedGroup->id)
+                : ($unmappedReferral || $groups->contains(fn ($group) => (int) ($record->category?->financial_group_id ?? 0) === (int) $group->id));
         })->sortByDesc(fn ($record) => ($isIncome ? $record->transaction_date : $record->expense_date) . sprintf('%012d', $record->id))->values();
         $total = (float) $rows->sum('amount');
         $chartRows = $rows->groupBy(function ($record) use ($isIncome, $selectedGroup, $groups) {
@@ -289,11 +299,21 @@ class ReportController extends Controller
         });
     }
 
+    private function includeUnmappedReferralGroup(Collection $groups, Collection $expenses): Collection
+    {
+        if ($expenses->contains(fn ($e) => $e->expense_type === 'REFERRAL' && !$groups->contains('id', $e->category?->financial_group_id))) {
+            $groups->push((object) ['id'=>-1, 'code'=>'REFERRAL_UNMAPPED', 'name'=>'Referral (belum dipetakan ke kelompok laporan)']);
+        }
+        return $groups;
+    }
+
     private function buildMonthlyExpense(Collection $groups, Collection $expenses): Collection
     {
-        return $groups->map(function ($group) use ($expenses) {
+        return $groups->map(function ($group) use ($expenses, $groups) {
             $groupRows = $expenses->filter(
-                fn ($expense) => (int) ($expense->category?->financial_group_id ?? 0) === (int) $group->id
+                fn ($expense) => $group->id === -1
+                    ? $expense->expense_type === 'REFERRAL' && !$groups->where('id', '!=', -1)->contains('id', $expense->category?->financial_group_id)
+                    : (int) ($expense->category?->financial_group_id ?? 0) === (int) $group->id
             );
 
             $details = $groupRows
@@ -359,9 +379,11 @@ class ReportController extends Controller
 
     private function buildYearlyExpense(Collection $groups, Collection $expenses): Collection
     {
-        return $groups->map(function ($group) use ($expenses) {
+        return $groups->map(function ($group) use ($expenses, $groups) {
             $groupRows = $expenses->filter(
-                fn ($expense) => (int) ($expense->category?->financial_group_id ?? 0) === (int) $group->id
+                fn ($expense) => $group->id === -1
+                    ? $expense->expense_type === 'REFERRAL' && !$groups->where('id', '!=', -1)->contains('id', $expense->category?->financial_group_id)
+                    : (int) ($expense->category?->financial_group_id ?? 0) === (int) $group->id
             );
 
             $details = $groupRows

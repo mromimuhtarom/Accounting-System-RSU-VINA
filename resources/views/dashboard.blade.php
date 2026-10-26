@@ -87,4 +87,7 @@
 @forelse($claimsByGuarantor as $row)<div style="margin:14px 0"><div style="display:flex;justify-content:space-between"><strong>{{$row->guarantor?->name??'Tanpa Penjamin'}}</strong><span>Rp {{number_format($row->total,0,',','.')}} · Sisa Rp {{number_format(max(0,$row->approved-$row->paid),0,',','.')}}</span></div><div style="background:#eaf3ee;height:12px;border-radius:8px;overflow:hidden"><div style="background:#029f6b;width:{{100*$row->total/$claimMax}}%;height:100%"></div></div></div>@empty<p>Belum ada klaim bulanan yang diinput ke modul Asuransi.</p>@endforelse</div>
 @endif
 
+@if(in_array($role,['KASIR','ACCOUNTING','ADMIN_ACCOUNTING','KEPALA_KEUANGAN','ATASAN','FINANCE','DIREKTUR','OWNER']))
+@include('reports.partials.referral-summary')
+@endif
 @endsection

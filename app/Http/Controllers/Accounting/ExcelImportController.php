@@ -18,10 +18,10 @@ class ExcelImportController extends Controller
 {
     public function handle(Request $request, string $module, SmartExcelImport $service)
     {
-        abort_unless(in_array($module, ['receipts', 'expenses'], true), 404);
+        abort_unless(in_array($module, ['receipts', 'expenses', 'referrals'], true), 404);
         $scope = $request->routeIs('insurance.receipts.*') ? 'insurance' : ($request->routeIs('cashier.*') ? 'cashier' : 'accounting');
         abort_if($scope === 'insurance' && $module !== 'receipts', 403);
-        $returnRoute = match ($scope) {
+        $returnRoute = $module === 'referrals' ? 'accounting.referrals.index' : match ($scope) {
             'insurance' => 'insurance.receipts.index',
             'cashier' => $module === 'receipts' ? 'cashier.receipts.index' : 'cashier.expenses.index',
             default => $module === 'receipts' ? 'accounting.receipts.index' : 'accounting.pengeluaran.index',
@@ -112,6 +112,10 @@ class ExcelImportController extends Controller
                                         $data['cashier_id'] = $request->user()->id;
                                         $record = Receipt::create($data);
                                         app(AutomaticJournalService::class)->receipt($record, $request->user()->id);
+                                    } elseif ($module === 'referrals') {
+                                        $referralRequest = Request::create('/accounting/referrals', 'POST', $data);
+                                        $referralRequest->setUserResolver(fn () => $request->user());
+                                        app(ReferralExpenseController::class)->store($referralRequest);
                                     } else {
                                         $data['expense_no'] = $data['expense_no'] ?? 'EXP-IMP-'.Str::uuid();
                                         $data['expense_type'] = 'GENERAL';

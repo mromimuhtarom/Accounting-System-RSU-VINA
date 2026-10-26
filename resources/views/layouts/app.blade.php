@@ -74,19 +74,21 @@
                 <div class="menu-label">Transaksi</div>
                 <a class="{{ request()->routeIs('cashier.receipts.index') || request()->routeIs('cashier.receipts.edit') ? 'active' : '' }}" href="{{ route('cashier.receipts.index') }}"><span class="menu-icon">↙</span> Penerimaan</a>
                 <a class="{{ request()->routeIs('cashier.receipts.create') ? 'active' : '' }}" href="{{ route('cashier.receipts.create') }}"><span class="menu-icon">＋</span> Input Penerimaan</a>
-                <a class="{{ request()->routeIs('cashier.expenses.index') || request()->routeIs('cashier.expenses.edit') ? 'active' : '' }}" href="{{ route('cashier.expenses.index') }}"><span class="menu-icon">↗</span> Pengeluaran</a>
+                <a class="{{ request()->routeIs('cashier.expenses.index') || request()->routeIs('cashier.expenses.edit') ? 'active' : '' }}" href="{{ route('cashier.expenses.index') }}"><span class="menu-icon">↗</span> Pengeluaran Umum</a>
                 <a class="{{ request()->routeIs('cashier.expenses.create') ? 'active' : '' }}" href="{{ route('cashier.expenses.create') }}"><span class="menu-icon">＋</span> Input Pengeluaran</a>
             @endif
 
             @if(in_array($role,['ACCOUNTING','KEPALA_KEUANGAN','ADMIN_ACCOUNTING']))
                 <div class="menu-label">Transaksi</div>
                 <a class="{{ request()->routeIs('accounting.receipts.*') ? 'active' : '' }}" href="{{ route('accounting.receipts.index') }}"><span class="menu-icon">↙</span> Penerimaan</a>
-                <a class="{{ request()->routeIs('accounting.pengeluaran.*') ? 'active' : '' }}" href="{{ route('accounting.pengeluaran.index') }}"><span class="menu-icon">↗</span> Pengeluaran</a>
+                <a class="{{ request()->routeIs('accounting.pengeluaran.*') ? 'active' : '' }}" href="{{ route('accounting.pengeluaran.index') }}"><span class="menu-icon">↗</span> Pengeluaran Umum</a>
 
             @endif
 
             @if(in_array($role,['KASIR','ACCOUNTING','KEPALA_KEUANGAN','ADMIN_ACCOUNTING']))
+                <a class="{{ request()->routeIs('accounting.referrals.*') ? 'active' : '' }}" href="{{ route('accounting.referrals.index') }}">Pengeluaran Referal</a>
                 <div class="menu-label">Master Data</div>
+                <a class="{{ request()->routeIs('accounting.referral-recipients.*') ? 'active' : '' }}" href="{{ route('accounting.referral-recipients.index') }}">Penerima Referral</a>
                 <a class="{{ request()->routeIs('accounting.master.*') && request()->route('type') === 'accounts' ? 'active' : '' }}" href="{{ route('accounting.master.index','accounts') }}"><span class="menu-icon">▦</span> Daftar Akun (COA)</a>
                 <a class="{{ request()->routeIs('accounting.master.*') && request()->route('type') === 'units' ? 'active' : '' }}" href="{{ route('accounting.master.index','units') }}"><span class="menu-icon">✚</span> Unit Pelayanan</a>
                 <a class="{{ request()->routeIs('accounting.master.*') && request()->route('type') === 'guarantors' ? 'active' : '' }}" href="{{ route('accounting.master.index','guarantors') }}"><span class="menu-icon">◇</span> Penjamin</a>

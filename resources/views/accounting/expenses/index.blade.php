@@ -3,7 +3,7 @@
 <div class="card">
     <div class="actions">
         <a class="btn" href="{{ route($isCashier ? 'cashier.excel-import' : 'accounting.excel-import', ['module'=>'expenses']) }}">Import Excel</a>
-        <h2 style="flex:1">Semua Data Pengeluaran</h2>
+        <h2 style="flex:1">Pengeluaran Umum</h2>
 
         <a class="btn primary" href="{{ route($routePrefix . '.create') }}">Tambah Pengeluaran</a>
         <a class="btn" href="{{ route('excel.expenses', request()->except('page')) }}" style="background:#e8f6ed;color:#087344;border:1px solid #a3d8bb;font-weight:700">↓ Export Excel Sesuai Filter</a>

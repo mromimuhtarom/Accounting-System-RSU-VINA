@@ -1,6 +1,6 @@
 @extends('layouts.app')
 @section('content')
-<div class="page-head"><div><h1 class="page-title">Smart Excel Import — {{ $module === 'receipts' ? 'Pemasukan' : 'Pengeluaran' }}</h1><p class="page-sub">Upload Excel → Auto Mapping → Preview & Validation → Confirm Import → Result</p></div><a class="btn" href="{{ route($returnRoute) }}">Kembali</a></div>
+<div class="page-head"><div><h1 class="page-title">Smart Excel Import — {{ $module === 'receipts' ? 'Pemasukan' : ($module === 'referrals' ? 'Pengeluaran Referral' : 'Pengeluaran') }}</h1><p class="page-sub">Upload Excel → Auto Mapping → Preview & Validation → Confirm Import → Result</p>@if($module === 'referrals')<p>Gunakan ID, kode, atau nama penerima yang tersedia di Master Penerima. Nama baru atau ambigu harus diperiksa di master terlebih dahulu.</p>@endif</div><a class="btn" href="{{ route($returnRoute) }}">Kembali</a></div>
 @if($errors->any())<div class="rsv-note rsv-warning">@foreach($errors->all() as $error)<div>{{ $error }}</div>@endforeach</div>@endif
 @if($result)
 <div class="card"><h3>Hasil Import</h3><p>Berhasil: <strong>{{ $result['success'] }}</strong> · Gagal validasi: <strong>{{ $result['failed'] }}</strong> · Dilewati / duplikat: <strong>{{ $result['skipped'] }}</strong></p><a class="btn" href="{{ url()->current() }}">Import file lain</a></div>

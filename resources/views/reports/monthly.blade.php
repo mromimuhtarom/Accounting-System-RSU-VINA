@@ -168,5 +168,6 @@
     <div><span>Total Pengeluaran</span><strong>Rp {{ number_format($totalExpense, 0, ',', '.') }}</strong></div>
     <div class="grand-result"><span>Surplus / (Defisit)</span><strong class="{{ $surplus < 0 ? 'text-danger' : 'text-positive' }}">Rp {{ number_format($surplus, 0, ',', '.') }}</strong></div>
 </div>
+@include('reports.partials.referral-summary')
 </div>
 @endsection

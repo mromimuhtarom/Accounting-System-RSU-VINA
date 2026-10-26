@@ -2,8 +2,10 @@
 namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 class Expense extends Model {
-    protected $fillable=['expense_no','expense_type','expense_date','patient_id','receipt_id','expense_category_id','chart_account_id','description','amount','payment_method','cash_bank_account_id','reference_no','referral_recipient','attachment_path','created_by','status'];
+    protected $fillable=['expense_no','expense_type','expense_date','patient_id','receipt_id','expense_category_id','chart_account_id','description','amount','payment_method','cash_bank_account_id','reference_no','referral_recipient','referral_recipient_id','referral_patient_name','referral_medical_record_no','referral_procedure','attachment_path','created_by','status'];
     protected function casts():array{return ['expense_date'=>'date','amount'=>'decimal:2'];}
+    public function referralRecipient(){return $this->belongsTo(ReferralRecipient::class);}
+    public function getReferralRecipientNameAttribute(){return $this->referralRecipient?->name ?? $this->referral_recipient;}
     public function patient(){return $this->belongsTo(Patient::class)->withTrashed();}
     public function receipt(){return $this->belongsTo(Receipt::class);}
     public function category(){return $this->belongsTo(ExpenseCategory::class,'expense_category_id');}

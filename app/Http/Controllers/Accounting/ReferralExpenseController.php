@@ -15,43 +15,26 @@ class ReferralExpenseController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Expense::with([
-            'receipt.account',
-            'cashBankAccount',
-            'journal',
-        ])
-            ->where('expense_type', 'REFERRAL')
-            ->latest('expense_date')
-            ->latest('id');
+        $query = $this->query($request);
+        return view('accounting.referrals.index', ['referrals' => $query->paginate(10)->withQueryString()]);
+    }
 
-        if ($request->filled('date_from')) {
-            $query->whereDate('expense_date', '>=', $request->date_from);
-        }
-
-        if ($request->filled('date_to')) {
-            $query->whereDate('expense_date', '<=', $request->date_to);
-        }
-
+    private function query(Request $request)
+    {
+        $query = Expense::with(['referralRecipient', 'patient', 'account', 'receipt.account', 'cashBankAccount', 'journal'])
+            ->where('expense_type', 'REFERRAL')->latest('expense_date')->latest('id');
+        if ($request->filled('date_from')) $query->whereDate('expense_date', '>=', $request->date_from);
+        if ($request->filled('date_to')) $query->whereDate('expense_date', '<=', $request->date_to);
         if ($request->filled('search')) {
-            $search = trim((string) $request->search);
-            $query->where(function ($q) use ($search) {
-                $q->where('expense_no', 'like', "%{$search}%")
-                    ->orWhere('referral_recipient', 'like', "%{$search}%")
-                    ->orWhereHas('receipt', function ($receipt) use ($search) {
-                        $receipt->where('transaction_no', 'like', "%{$search}%")
-                            ->orWhere('income_code', 'like', "%{$search}%")
-                            ->orWhereHas('account', function ($account) use ($search) {
-                                $account->where('code', 'like', "%{$search}%")
-                                    ->orWhere('name', 'like', "%{$search}%");
-                            })
-                            ->orWhere('notes', 'like', "%{$search}%");
-                    });
-            });
+            $term = trim((string) $request->search);
+            $query->where(fn ($q) => $q->where('referral_recipient', 'like', "%{$term}%")
+                ->orWhereHas('referralRecipient', fn ($r) => $r->where('name', 'like', "%{$term}%"))
+                ->orWhere('referral_patient_name', 'like', "%{$term}%")
+                ->orWhere('referral_medical_record_no', 'like', "%{$term}%")
+                ->orWhere('expense_no', 'like', "%{$term}%")
+                ->orWhereHas('receipt', fn ($r) => $r->where('transaction_no', 'like', "%{$term}%")->orWhere('notes', 'like', "%{$term}%")));
         }
-
-        return view('accounting.referrals.index', [
-            'referrals' => $query->paginate(10)->withQueryString(),
-        ]);
+        return $query;
     }
 
     public function create()
@@ -65,23 +48,24 @@ class ReferralExpenseController extends Controller
     public function store(Request $request)
     {
         $data = $this->validated($request);
-        $receipt = Receipt::findOrFail($data['receipt_id']);
-        $category = $this->referralCategory();
+        $receipt = !empty($data['receipt_id']) ? Receipt::findOrFail($data['receipt_id']) : null;
+        $category = $this->referralCategory($data['chart_account_id']);
 
-        $data['patient_id'] = $receipt->patient_id;
+        $data['patient_id'] = $receipt?->patient_id;
         $data['expense_no'] = 'REF-'
             . now()->format('YmdHis')
             . '-'
             . random_int(100, 999);
         $data['expense_type'] = 'REFERRAL';
         $data['expense_category_id'] = $category->id;
-        $data['chart_account_id'] = $category->expense_account_id;
+        // COA khusus referal sudah divalidasi.
         $data['created_by'] = $request->user()->id;
         $data['status'] = 'ACTIVE';
-        $data['description'] = $data['description']
-            ?: 'Pengeluaran referal sesi ' . $receipt->transaction_no;
+        $data['description'] = ($data['description'] ?? null)
+            ?: 'Pengeluaran referal sesi ' . ($receipt?->transaction_no ?? $data['referral_patient_name']);
 
         $posted = \Illuminate\Support\Facades\DB::transaction(function () use ($data, $request) {
+            $this->lockRecipient($data['referral_recipient_id']);
             $expense = Expense::create($data);
             return app(\App\Services\AutomaticJournalService::class)->expense($expense, $request->user()->id);
         });
@@ -94,12 +78,6 @@ class ReferralExpenseController extends Controller
     public function edit(Expense $referral)
     {
         $this->ensureReferral($referral);
-
-        if ($referral->journal()->exists()) {
-            return redirect()
-                ->route('accounting.referrals.index')
-                ->with('error', 'Referal yang sudah dijurnal tidak dapat diedit.');
-        }
 
         return view(
             'accounting.referrals.edit',
@@ -114,24 +92,21 @@ class ReferralExpenseController extends Controller
     {
         $this->ensureReferral($referral);
 
-        if ($referral->journal()->exists()) {
-            return back()->withErrors([
-                'referral' => 'Referal yang sudah dijurnal tidak dapat diedit.',
-            ]);
-        }
-
         $data = $this->validated($request, $referral->id);
-        $receipt = Receipt::findOrFail($data['receipt_id']);
-        $category = $this->referralCategory();
+        $receipt = !empty($data['receipt_id']) ? Receipt::findOrFail($data['receipt_id']) : null;
+        $category = $this->referralCategory($data['chart_account_id']);
 
-        $data['patient_id'] = $receipt->patient_id;
+        $data['patient_id'] = $receipt?->patient_id;
         $data['expense_type'] = 'REFERRAL';
         $data['expense_category_id'] = $category->id;
-        $data['chart_account_id'] = $category->expense_account_id;
-        $data['description'] = $data['description']
-            ?: 'Pengeluaran referal sesi ' . $receipt->transaction_no;
+        // COA khusus referal sudah divalidasi.
+        $data['description'] = ($data['description'] ?? null)
+            ?: 'Pengeluaran referal sesi ' . ($receipt?->transaction_no ?? $data['referral_patient_name']);
 
-        $referral->update($data);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($referral, $data) {
+            $this->lockRecipient($data['referral_recipient_id'], $referral->referral_recipient_id);
+            app(\App\Services\ExpenseTransactionService::class)->update($referral, $data);
+        });
 
         return redirect()
             ->route('accounting.referrals.index')
@@ -165,6 +140,8 @@ class ReferralExpenseController extends Controller
 
         return [
             'sessions' => $receipts,
+            'recipients' => \App\Models\ReferralRecipient::where('is_active', true)->when($editing?->referral_recipient_id, fn ($q) => $q->orWhere('id', $editing->referral_recipient_id))->orderBy('name')->get(),
+            'accounts' => \App\Models\ChartAccount::where('is_active', true)->where('type', 'EXPENSE')->where('is_referral', true)->orderBy('code')->get(),
             'cashBanks' => CashBankAccount::where('is_active', true)
                 ->orderBy('name')
                 ->get(),
@@ -172,7 +149,7 @@ class ReferralExpenseController extends Controller
         ];
     }
 
-    private function validated(
+    public function validated(
         Request $request,
         ?int $ignoreExpenseId = null
     ): array {
@@ -185,18 +162,21 @@ class ReferralExpenseController extends Controller
             $uniqueSession->ignore($ignoreExpenseId);
         }
 
-        return $request->validate([
+        $data = $request->validate([
             'expense_date' => ['required', 'date'],
+            'chart_account_id' => ['required', Rule::exists('chart_accounts', 'id')->where('is_active', true)->where('type', 'EXPENSE')->where('is_referral', true)],
             'receipt_id' => [
-                'required',
-                'exists:receipts,id',
+                'nullable',
+                Rule::exists('receipts', 'id')->where('status', 'ACTIVE'),
                 $uniqueSession,
             ],
-            'referral_recipient' => [
-                'required',
-                'string',
-                'max:150',
-            ],
+            'referral_recipient_id' => ['required', Rule::exists('referral_recipients', 'id')->where(function ($q) use ($ignoreExpenseId) {
+                $existing = $ignoreExpenseId ? Expense::findOrFail($ignoreExpenseId)->referral_recipient_id : null;
+                $q->where('is_active', true)->when($existing, fn ($q) => $q->orWhere('id', $existing));
+            })],
+            'referral_patient_name' => ['required', 'string', 'max:150'],
+            'referral_medical_record_no' => ['required', 'string', 'max:100'],
+            'referral_procedure' => ['required', 'in:SC,RI'],
             'amount' => ['required', 'numeric', 'gt:0'],
             'payment_method' => [
                 'required',
@@ -204,7 +184,7 @@ class ReferralExpenseController extends Controller
             ],
             'cash_bank_account_id' => [
                 'required',
-                'exists:cash_bank_accounts,id',
+                Rule::exists('cash_bank_accounts', 'id')->where('is_active', true),
             ],
             'reference_no' => [
                 'nullable',
@@ -219,12 +199,46 @@ class ReferralExpenseController extends Controller
         ], [
             'receipt_id.unique' => 'Sesi pemasukan tersebut sudah memiliki referal. Satu sesi hanya boleh memiliki satu referal.',
         ]);
+        $data['referral_patient_name'] = trim($data['referral_patient_name']);
+        $data['referral_medical_record_no'] = mb_strtoupper(trim($data['referral_medical_record_no']));
+        return $data;
     }
 
-    private function referralCategory(): ExpenseCategory
+    public function destroy(Expense $referral)
     {
-        return ExpenseCategory::where('code', 'REFERAL')
-            ->firstOrFail();
+        $this->ensureReferral($referral);
+        app(\App\Services\ExpenseTransactionService::class)->delete($referral);
+        return redirect()->route('accounting.referrals.index')->with('success', 'Pengeluaran referal berhasil dihapus.');
+    }
+
+    public function export(Request $request)
+    {
+        $rows = $this->query($request)->get()->map(fn ($e, $i) => [
+            $i + 1, $e->expense_date->format('Y-m-d'), $e->referral_recipient_name,
+            $e->referral_patient_name ?: ($e->patient?->name ?: $e->receipt?->patient_name),
+            $e->referral_medical_record_no ?: $e->patient?->medical_record_no, $e->referral_procedure,
+            $e->account?->code, $e->account?->name, $e->description,
+            $e->payment_method, $e->cashBankAccount?->name, (float) $e->amount,
+        ])->all();
+        return \App\Services\InsuranceExcel::download('Pengeluaran_Referal.xlsx',
+            ['No', 'Tanggal', 'Penerima Referal', 'Pasien', 'No RM', 'Tindakan', 'Kode COA', 'Nama Akun', 'Keterangan', 'Metode', 'Kas/Bank', 'Nominal'], $rows);
+    }
+
+    private function lockRecipient(int $id, ?int $existing = null): void
+    {
+        $recipient = \App\Models\ReferralRecipient::whereKey($id)->lockForUpdate()->firstOrFail();
+        if (!$recipient->is_active && $existing !== $id) throw \Illuminate\Validation\ValidationException::withMessages(['referral_recipient_id'=>'Penerima telah dinonaktifkan. Pilih penerima aktif.']);
+    }
+
+    private function referralCategory(int $accountId): ExpenseCategory
+    {
+        $defaults = ['name'=>'Referal', 'is_active'=>true, 'expense_account_id'=>$accountId];
+        if (\Illuminate\Support\Facades\Schema::hasColumn('expense_categories', 'financial_group_id')) {
+            $defaults['financial_group_id'] = \App\Models\FinancialGroup::where('type', 'EXPENSE')->where('is_active', true)
+                ->orderByRaw("CASE WHEN code = 'EXP_OPERATIONAL' THEN 0 ELSE 1 END")->value('id');
+        }
+        $category = ExpenseCategory::firstOrCreate(['code'=>'REFERAL'], $defaults);
+        return $category;
     }
 
     private function ensureReferral(Expense $expense): void

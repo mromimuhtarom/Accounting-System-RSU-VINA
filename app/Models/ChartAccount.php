@@ -6,11 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class ChartAccount extends Model
 {
-    protected $fillable = ['code', 'name', 'type', 'parent_id', 'normal_balance', 'is_active'];
+    protected $fillable = ['code', 'name', 'type', 'parent_id', 'normal_balance', 'is_active', 'is_referral'];
 
     protected function casts(): array
     {
-        return ['is_active' => 'boolean'];
+        return ['is_active' => 'boolean', 'is_referral' => 'boolean'];
     }
 
     public function parent() { return $this->belongsTo(self::class, 'parent_id'); }

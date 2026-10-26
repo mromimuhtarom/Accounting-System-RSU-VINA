@@ -1,0 +1,13 @@
+@extends('layouts.app')
+@section('content')
+<div class="card"><div class="actions"><h2 style="flex:1">{{ $recipient->name }}</h2><a class="btn" href="{{ route('accounting.referral-recipients.edit',$recipient) }}">Edit Penerima</a><a class="btn" href="{{ route('accounting.referral-recipients.index') }}">Kembali</a></div>
+<p>{{ $recipient->code }} · {{ $recipient->is_active ? 'Aktif' : 'Nonaktif' }}</p><p>Kontak: {{ $recipient->phone ?: '-' }}</p><p>{{ $recipient->notes }}</p></div>
+<div class="card"><form method="GET" class="form-grid"><div class="field"><label>Bulan</label><select name="month"><option value="0">Semua bulan</option>@for($m=1;$m<=12;$m++)<option value="{{ $m }}" @selected($month===$m)>{{ $m }}</option>@endfor</select></div><div class="field"><label>Tahun</label><input type="number" name="year" min="2000" max="2100" value="{{ $year }}"></div><div class="actions"><button class="btn">Tampilkan</button></div></form></div>
+<div class="stats-grid">
+@foreach(['transactions'=>'Jumlah Transaksi','patients'=>'Pasien (No. RM Unik)','sc'=>'Transaksi SC','ri'=>'Transaksi RI'] as $key=>$label)<div class="card"><div class="stat-label">{{ $label }}</div><div class="stat">{{ $stats[$key] ?? 0 }}</div></div>@endforeach
+@foreach(['total'=>'Total Referral','sc_amount'=>'Nominal SC','ri_amount'=>'Nominal RI'] as $key=>$label)<div class="card"><div class="stat-label">{{ $label }}</div><div class="stat">Rp {{ number_format($stats[$key] ?? 0,0,',','.') }}</div></div>@endforeach
+</div>
+<div class="card"><p class="muted">Rekap menghitung transaksi aktif. Riwayat menampilkan semua status. No. RM kosong pada data lama tidak dihitung sebagai pasien unik; tindakan lama tidak ditebak sebagai SC/RI.</p><div class="table-wrap"><table><thead><tr><th>Tanggal</th><th>Pasien</th><th>No. RM</th><th>Tindakan</th><th>Nominal</th><th>Status</th><th>Keterangan</th></tr></thead><tbody>
+@forelse($expenses as $e)<tr><td>{{ $e->expense_date->format('d-m-Y') }}</td><td>{{ $e->referral_patient_name ?: ($e->patient?->name ?: $e->receipt?->patient_name) }}</td><td>{{ $e->referral_medical_record_no ?: ($e->patient?->medical_record_no ?: $e->receipt?->patient?->medical_record_no) }}</td><td>{{ $e->referral_procedure ?: 'Belum diisi' }}</td><td>Rp {{ number_format($e->amount,0,',','.') }}</td><td>{{ $e->status }}</td><td>{{ $e->description }}</td></tr>@empty<tr><td colspan="7">Belum ada transaksi pada periode ini.</td></tr>@endforelse
+</tbody></table></div>{{ $expenses->links() }}</div>
+@endsection

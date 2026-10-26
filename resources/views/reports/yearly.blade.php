@@ -118,5 +118,6 @@
     </div>
 </div>
 
+@include('reports.partials.referral-summary')
 </div>
 @endsection

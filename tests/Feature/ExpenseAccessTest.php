@@ -30,6 +30,8 @@ class ExpenseAccessTest extends TestCase
             '2026_08_19_000009_create_patients_and_link_receipts.php',
             '2026_08_19_000010_add_referral_fields_to_expenses.php',
             '2026_10_25_000001_create_activity_logs_table.php',
+            '2026_10_26_000001_add_referral_group_to_chart_accounts.php',
+            '2026_10_26_000002_create_referral_recipients.php',
         ] as $file) {
             (require database_path('migrations/'.$file))->up();
         }
@@ -89,12 +91,12 @@ class ExpenseAccessTest extends TestCase
         DB::disableQueryLog();
     }
 
-    public function test_cashier_sees_other_users_expenses_and_referrals(): void
+    public function test_cashier_sees_general_expenses_separately_from_referrals(): void
     {
         $expense = $this->expense();
         $referral = $this->expense(['expense_type' => 'REFERRAL']);
         $this->get(route('cashier.expenses.index'))->assertOk()
-            ->assertSee($expense->expense_no)->assertSee($referral->expense_no)
+            ->assertSee($expense->expense_no)->assertDontSee($referral->expense_no)
             ->assertDontSee(route('cashier.expenses.edit', $expense))
             ->assertDontSee(route('cashier.expenses.destroy', $expense));
         $this->get(route('cashier.expenses.index', ['q' => 'tidak-ada']))->assertOk()->assertDontSee($expense->expense_no);
@@ -157,7 +159,11 @@ class ExpenseAccessTest extends TestCase
         $zip = new \ZipArchive();
         try {
             $this->assertTrue($zip->open($path));
-            $this->assertStringContainsString($expense->expense_no, $zip->getFromName('xl/worksheets/sheet1.xml'));
+            $xml = $zip->getFromName('xl/worksheets/sheet1.xml');
+            $this->assertStringNotContainsString($expense->expense_no, $xml);
+            $this->assertStringContainsString('Belanja perlengkapan', $xml);
+            $this->assertStringContainsString('<c r="A5" s="4"><v>1</v></c>', $xml);
+            $this->assertStringNotContainsString('No Transaksi', $xml);
             $zip->close();
         } finally {
             unlink($path);
@@ -391,4 +397,73 @@ class ExpenseAccessTest extends TestCase
             $this->assertNotNull($receipt->fresh());
         }
     }
+    public function test_referral_crud_for_all_four_roles_keeps_journals_balanced(): void
+    {
+        $account = ChartAccount::create(['code'=>'REF-COA', 'name'=>'Beban Referal', 'type'=>'EXPENSE', 'normal_balance'=>'DEBIT', 'is_referral'=>true]);
+        $receipt = $this->receipt($this->owner->id);
+        foreach (['KASIR', 'ACCOUNTING', 'KEPALA_KEUANGAN', 'ADMIN_ACCOUNTING'] as $code) {
+            $user = $this->cashier;
+            if ($code !== 'KASIR') {
+                $user = User::factory()->create();
+                $role = DB::table('roles')->insertGetId(['application_id'=>DB::table('applications')->value('id'), 'code'=>$code, 'name'=>$code]);
+                $user->roles()->attach($role);
+            }
+            $this->actingAs($user);
+            $this->get(route('accounting.referrals.index'))->assertOk();
+            $this->get(route('accounting.referrals.create'))->assertOk()->assertSee('Beban Referal');
+            $recipient = \App\Models\ReferralRecipient::firstOrCreate(['name'=>'Dokter Referal']);
+            $payload = ['referral_recipient_id'=>$recipient->id, 'referral_patient_name'=>'Pasien Uji', 'referral_medical_record_no'=>'RM-001', 'referral_procedure'=>'SC', 'expense_date'=>'2026-10-26', 'receipt_id'=>$receipt->id, 'chart_account_id'=>$account->id,
+                'referral_recipient'=>'Dokter Referal', 'amount'=>250000, 'payment_method'=>'CASH', 'cash_bank_account_id'=>$this->cash->id];
+            $this->post(route('accounting.referrals.store'), array_replace($payload, ['chart_account_id'=>$this->category->expense_account_id]))->assertSessionHasErrors('chart_account_id');
+            $this->post(route('accounting.referrals.store'), $payload)->assertSessionHasNoErrors()->assertRedirect(route('accounting.referrals.index'));
+            $expense = Expense::where('expense_type', 'REFERRAL')->firstOrFail();
+            $journal = $expense->journal()->firstOrFail();
+            $this->post(route('accounting.referrals.store'), $payload)->assertSessionHasErrors('receipt_id');
+            $this->get(route('accounting.referrals.edit', $expense))->assertOk();
+            $this->put(route('accounting.referrals.update', $expense), array_replace($payload, ['amount'=>300000]))->assertSessionHasNoErrors();
+            $this->assertEquals(300000, $journal->lines()->sum('debit'));
+            $this->assertEquals(300000, $journal->lines()->sum('credit'));
+            $response = $this->get(route('accounting.referrals.export', ['search'=>'Dokter Referal']))->assertOk();
+            $path = $response->baseResponse->getFile()->getPathname();
+            $zip = new \ZipArchive();
+            $this->assertTrue($zip->open($path));
+            $xml = $zip->getFromName('xl/worksheets/sheet1.xml');
+            $zip->close();
+            unlink($path);
+            $this->assertStringContainsString('<c r="A5" s="4"><v>1</v></c>', $xml);
+            $this->assertStringContainsString('Dokter Referal', $xml);
+            $this->assertStringNotContainsString($expense->expense_no, $xml);
+            $this->delete(route('accounting.referrals.destroy', $expense))->assertRedirect(route('accounting.referrals.index'));
+            $this->assertDatabaseMissing('expenses', ['id'=>$expense->id]);
+            $this->assertDatabaseMissing('journal_entries', ['id'=>$journal->id]);
+        }
+    }
+
+    public function test_insurance_cannot_access_referrals_or_change_coa(): void
+    {
+        $expense = $this->expense(['expense_type'=>'REFERRAL']);
+        $this->insuranceUser();
+        $this->get(route('accounting.referrals.index'))->assertForbidden();
+        $this->get(route('accounting.referrals.export'))->assertForbidden();
+        $this->post(route('accounting.referrals.store'), [])->assertForbidden();
+        $this->put(route('accounting.referrals.update', $expense), [])->assertForbidden();
+        $this->delete(route('accounting.referrals.destroy', $expense))->assertForbidden();
+        $this->post(route('accounting.master.store', 'accounts'), [])->assertForbidden();
+    }
+
+    public function test_receipt_export_uses_sequence_instead_of_transaction_code(): void
+    {
+        $receipt = $this->receipt($this->owner->id);
+        $response = $this->get(route('excel.receipts'))->assertOk();
+        $path = $response->baseResponse->getFile()->getPathname();
+        $zip = new \ZipArchive();
+        $this->assertTrue($zip->open($path));
+        $xml = $zip->getFromName('xl/worksheets/sheet1.xml');
+        $zip->close();
+        unlink($path);
+        $this->assertStringContainsString('<c r="A5" s="4"><v>1</v></c>', $xml);
+        $this->assertStringNotContainsString('No Transaksi', $xml);
+        $this->assertStringNotContainsString($receipt->transaction_no, $xml);
+    }
+
 }

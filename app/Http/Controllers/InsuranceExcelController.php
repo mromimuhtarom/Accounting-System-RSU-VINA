@@ -36,19 +36,19 @@ class InsuranceExcelController extends Controller
                 ->orWhere('doctor_name','like',"%{$term}%")
                 ->orWhereHas('account',fn($a) => $a->where('code','like',"%{$term}%")->orWhere('name','like',"%{$term}%")));
         }
-        $rows = $query->orderByDesc('transaction_date')->orderByDesc('id')->get()->map(fn($v) => [
-            $v->transaction_no, (string) $v->transaction_date, $v->income_code ?: ($v->account?->code ?? ''),
+        $rows = $query->orderByDesc('transaction_date')->orderByDesc('id')->get()->map(fn($v, $i) => [
+            $i + 1, (string) $v->transaction_date, $v->income_code ?: ($v->account?->code ?? ''),
             $v->account?->name ?? '', $v->notes ?: ($v->patient_name ?? ''), $v->patient_name ?? '',
             $v->doctor_name ?? '', $v->guarantor?->name ?? 'Belum dipilih', $v->payment_method ?? 'Belum diisi',
             $v->cashier?->name ?? '', (float) $v->amount, $v->status ?? ''
         ])->all();
         return InsuranceExcel::download('Penerimaan_RSUVE.xlsx',
-            ['No Transaksi','Tanggal','Kode COA','Nama Akun','Keterangan','Pasien','Dokter','Penjamin','Metode','Petugas','Nominal','Status'],
+            ['No','Tanggal','Kode COA','Nama Akun','Keterangan','Pasien','Dokter','Penjamin','Metode','Petugas','Nominal','Status'],
             $rows, 'Data berdasarkan filter halaman Penerimaan; semua status ditampilkan.');
     }
     public function expenses(Request $request)
     {
-        $query = Expense::with(['category','cashBankAccount','account']);
+        $query = Expense::with(['category','cashBankAccount','account'])->where('expense_type', 'GENERAL');
         if ($request->filled('date_from')) $query->whereDate('expense_date','>=',$request->date_from);
         if ($request->filled('date_to')) $query->whereDate('expense_date','<=',$request->date_to);
         if ($request->filled('q')) {
@@ -58,14 +58,14 @@ class InsuranceExcelController extends Controller
                 ->orWhere('reference_no','like',"%{$term}%")
                 ->orWhereHas('category', fn($c)=>$c->where('name','like',"%{$term}%")));
         }
-        $rows = $query->orderByDesc('expense_date')->orderByDesc('id')->get()->map(fn($e) => [
-            $e->expense_no, (string) $e->expense_date, $e->expense_type ?? 'GENERAL',
+        $rows = $query->orderByDesc('expense_date')->orderByDesc('id')->get()->map(fn($e, $i) => [
+            $i + 1, (string) $e->expense_date, $e->expense_type ?? 'GENERAL',
             $e->category?->name ?? '', $e->account?->code ?? '', $e->description,
             $e->payment_method ?? '', $e->cashBankAccount?->name ?? '', (float) $e->amount,
             $e->status ?? ''
         ])->all();
         return InsuranceExcel::download('Pengeluaran_RSUVE.xlsx',
-            ['No Transaksi','Tanggal','Jenis','Kategori','COA','Keterangan','Metode','Kas/Bank','Nominal','Status'],
+            ['No','Tanggal','Jenis','Kategori','COA','Keterangan','Metode','Kas/Bank','Nominal','Status'],
             $rows, 'Data berdasarkan filter halaman Pengeluaran; semua status ditampilkan.');
     }
 }

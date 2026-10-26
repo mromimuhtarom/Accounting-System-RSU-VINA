@@ -27,6 +27,17 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
+    Route::middleware('role:KASIR,ACCOUNTING,KEPALA_KEUANGAN,ADMIN_ACCOUNTING')->prefix('accounting')->name('accounting.')->group(function () {
+        Route::get('/referral-recipients/similar', [\App\Http\Controllers\Accounting\ReferralRecipientController::class, 'similar'])->name('referral-recipients.similar');
+        Route::get('/referral-recipients/template', [\App\Http\Controllers\Accounting\ReferralRecipientController::class, 'template'])->name('referral-recipients.template');
+        Route::post('/referral-recipients/import', [\App\Http\Controllers\Accounting\ReferralRecipientController::class, 'import'])->name('referral-recipients.import');
+        Route::resource('referral-recipients', \App\Http\Controllers\Accounting\ReferralRecipientController::class)->parameters(['referral-recipients'=>'recipient']);
+        Route::match(['get', 'post'], '/referrals/import', [\App\Http\Controllers\Accounting\ExcelImportController::class, 'handle'])->defaults('module', 'referrals')->name('referrals.import');
+        Route::get('/referrals/excel', [ReferralExpenseController::class, 'export'])->name('referrals.export');
+        Route::resource('referrals', ReferralExpenseController::class)->except(['show']);
+        Route::post('/referrals/{referral}/journal', [ReferralExpenseController::class, 'generateJournal'])->name('referrals.journal');
+    });
+
     // Kasir dapat melihat seluruh penerimaan dan pengeluaran serta mengelola pengeluaran umum.
     Route::middleware('role:KASIR')->prefix('kasir')->name('cashier.')->group(function () {
         Route::match(['get', 'post'], '/excel-import/{module}', [\App\Http\Controllers\Accounting\ExcelImportController::class, 'handle'])->whereIn('module', ['receipts', 'expenses'])->name('excel-import');
@@ -70,9 +81,9 @@ Route::middleware('auth')->group(function () {
         ->name('accounting.')
         ->group(function () {
             Route::get('/master/{type}', [MasterController::class, 'index'])->name('master.index');
-            Route::post('/master/{type}', [MasterController::class, 'store'])->middleware('role:KASIR,ACCOUNTING,KEPALA_KEUANGAN,ASURANSI')->name('master.store');
-            Route::put('/master/{type}/{id}', [MasterController::class, 'update'])->middleware('role:KASIR,ACCOUNTING,KEPALA_KEUANGAN,ASURANSI')->name('master.update');
-            Route::delete('/master/{type}/{id}', [MasterController::class, 'destroy'])->middleware('role:KASIR,ACCOUNTING,KEPALA_KEUANGAN,ASURANSI')->name('master.destroy');
+            Route::post('/master/{type}', [MasterController::class, 'store'])->middleware('role:KASIR,ACCOUNTING,KEPALA_KEUANGAN,ADMIN_ACCOUNTING,ASURANSI')->name('master.store');
+            Route::put('/master/{type}/{id}', [MasterController::class, 'update'])->middleware('role:KASIR,ACCOUNTING,KEPALA_KEUANGAN,ADMIN_ACCOUNTING,ASURANSI')->name('master.update');
+            Route::delete('/master/{type}/{id}', [MasterController::class, 'destroy'])->middleware('role:KASIR,ACCOUNTING,KEPALA_KEUANGAN,ADMIN_ACCOUNTING,ASURANSI')->name('master.destroy');
         });
 
     Route::middleware('role:ACCOUNTING,KEPALA_KEUANGAN,ADMIN_ACCOUNTING')->prefix('accounting')->name('accounting.')->group(function () {

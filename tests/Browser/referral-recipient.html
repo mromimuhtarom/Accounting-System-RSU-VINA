@@ -1,0 +1,29 @@
+<!doctype html><meta charset="utf-8"><title>Referral recipient modal regression</title>
+<form id="transaction"><input name="amount" value="125000"><input name="rm" value="RM-001"><input name="date" value="2026-10-26"><select id="referral-recipient"><option value="">Pilih</option><option value="1">Budi</option></select><button type="button" id="add-referral-recipient">Tambah</button></form>
+<dialog id="recipient-dialog"><form id="recipient-modal-form" action="/recipients" data-similar-url="/similar"><input name="name"><input name="phone"><textarea name="notes"></textarea><div id="recipient-modal-message"></div><div id="recipient-suggestions"></div><label id="recipient-confirm-label" hidden><input name="confirm_distinct" type="checkbox" value="1">Berbeda</label><button type="submit">Simpan</button><button type="button" id="close-recipient-dialog">Batal</button></form></dialog>
+<script>
+let count=0;
+window.fetch=async function(url,options){
+ if(!options?.method) return {ok:true,status:200,json:async()=>({recipients:[]})};
+ count++;
+ if(count===1)return {ok:false,status:409,json:async()=>({message:'Nama mirip',recipients:[{id:1,name:'Budi',is_active:true}]})};
+ return {ok:true,status:201,json:async()=>({id:2,code:'RR-TEST',name:'Siti',is_active:true})};
+};
+</script>
+<script src="../../public/js/searchable-select.js"></script><script src="../../public/js/referral-recipient.js"></script>
+<script>
+window.addEventListener('load',async()=>{
+ const pause=()=>new Promise(r=>setTimeout(r,30));
+ const form=document.getElementById('recipient-modal-form');const dialog=document.getElementById('recipient-dialog');
+ document.getElementById('add-referral-recipient').click();form.elements.name.value='Budhi';form.requestSubmit();await pause();
+ const warned=!document.getElementById('recipient-confirm-label').hidden&&dialog.open;
+ document.querySelector('#recipient-suggestions button').click();
+ const existing=document.getElementById('referral-recipient').value==='1'&&!dialog.open;
+ document.getElementById('add-referral-recipient').click();form.elements.name.value='Siti';form.requestSubmit();await pause();
+ const created=document.getElementById('referral-recipient').value==='2'&&!dialog.open;
+ const transaction=document.getElementById('transaction');
+ const preserved=transaction.elements.amount.value==='125000'&&transaction.elements.rm.value==='RM-001'&&transaction.elements.date.value==='2026-10-26';
+ const searchable=document.querySelector('.ss-value')?.textContent==='Siti';
+ const result=document.createElement('pre');result.id='result';result.textContent=JSON.stringify({warned,existing,created,preserved,searchable,passed:warned&&existing&&created&&preserved&&searchable});document.body.replaceChildren(result);
+});
+</script>

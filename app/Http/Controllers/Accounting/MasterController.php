@@ -50,7 +50,7 @@ class MasterController extends Controller
 
         return view('accounting.master.index', [
             'type' => $type,
-            'items' => $model::orderBy($sortColumn)
+            'items' => $model::query()->when($type === 'accounts' && $request->filled('group'), fn ($q) => $q->where('is_referral', $request->input('group') === 'referral'))->orderBy($sortColumn)
                 ->paginate(10)
                 ->withQueryString(),
             'editingItem' => $editingItem,
@@ -67,7 +67,7 @@ class MasterController extends Controller
     {
         $this->ensureCanManage($request, $type);
         if ($type === 'accounts') {
-            abort_unless(in_array(strtoupper(trim((string) ($request->user()?->accountingRole() ?? ''))), ['IT', 'ACCOUNTING', 'ADMIN_ACCOUNTING'], true), 403);
+            abort_unless(in_array(strtoupper(trim((string) ($request->user()?->accountingRole() ?? ''))), ['ACCOUNTING', 'KEPALA_KEUANGAN', 'ADMIN_ACCOUNTING', 'KASIR'], true), 403);
         }
 
         $class = $this->model($type);
@@ -82,7 +82,7 @@ class MasterController extends Controller
     {
         $this->ensureCanManage($request, $type);
         if ($type === 'accounts') {
-            abort_unless(in_array(strtoupper(trim((string) ($request->user()?->accountingRole() ?? ''))), ['IT', 'ACCOUNTING', 'ADMIN_ACCOUNTING'], true), 403);
+            abort_unless(in_array(strtoupper(trim((string) ($request->user()?->accountingRole() ?? ''))), ['ACCOUNTING', 'KEPALA_KEUANGAN', 'ADMIN_ACCOUNTING', 'KASIR'], true), 403);
         }
 
         $class = $this->model($type);
@@ -101,7 +101,7 @@ class MasterController extends Controller
     {
         $this->ensureCanManage($request, $type);
         if ($type === 'accounts') {
-            abort_unless(in_array(strtoupper(trim((string) ($request->user()?->accountingRole() ?? ''))), ['IT', 'ACCOUNTING', 'ADMIN_ACCOUNTING'], true), 403);
+            abort_unless(in_array(strtoupper(trim((string) ($request->user()?->accountingRole() ?? ''))), ['ACCOUNTING', 'KEPALA_KEUANGAN', 'ADMIN_ACCOUNTING', 'KASIR'], true), 403);
         }
 
         $class = $this->model($type);
@@ -257,6 +257,10 @@ class MasterController extends Controller
                     Rule::notIn(array_filter([$id])),
                 ],
                 'normal_balance' => ['required', 'in:DEBIT,CREDIT'],
+                'is_referral' => ['sometimes', 'boolean', function ($attribute, $value, $fail) use ($request, $id) {
+                    if ($value && $request->input('type') !== 'EXPENSE') $fail('COA Referal harus bertipe EXPENSE.');
+                    if ($id && ChartAccount::find($id)?->expenses()->exists() && (bool) $value !== ChartAccount::find($id)->is_referral) $fail('Kelompok COA yang sudah digunakan tidak dapat diubah.');
+                }],
                 'is_active' => ['required', 'boolean'],
             ]),
             'units' => $request->validate([

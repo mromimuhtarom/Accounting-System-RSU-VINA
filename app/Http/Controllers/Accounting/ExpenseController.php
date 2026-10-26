@@ -24,7 +24,7 @@ class ExpenseController extends Controller
             'receipt',
             'journal',
             'creator',
-        ])->latest('expense_date');
+        ])->where('expense_type', 'GENERAL')->latest('expense_date');
 
         if ($request->filled('q')) {
             $term = trim((string) $request->input('q'));
@@ -157,7 +157,7 @@ class ExpenseController extends Controller
             'categories' => ExpenseCategory::query()
                 ->where('is_active', true)
                 ->where('code', '!=', 'REFERAL')
-                ->whereHas('expenseAccount', fn ($q) => $q->where('is_active', true)->where('type', 'EXPENSE'))
+                ->whereHas('expenseAccount', fn ($q) => $q->where('is_active', true)->where('type', 'EXPENSE')->where('is_referral', false))
                 ->with(['expenseAccount:id,code,name'])
                 ->orderBy('name')
                 ->get(),
@@ -192,7 +192,7 @@ class ExpenseController extends Controller
         // Jangan percaya COA yang dikirim browser; selalu ambil dari pemetaan kategori.
         $data['chart_account_id'] = $category->expense_account_id;
 
-        if ($category->code === 'REFERAL') {
+        if ($category->code === 'REFERAL' || $category->expenseAccount->is_referral) {
             throw ValidationException::withMessages([
                 'expense_category_id' => 'Kategori Referal harus diinput melalui module Pengeluaran Referal.',
             ]);

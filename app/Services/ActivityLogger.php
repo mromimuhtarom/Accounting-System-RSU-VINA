@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Schema;
 class ActivityLogger
 {
     public const FORMS = [
-        'Receipt'=>'Penerimaan', 'Expense'=>'Pengeluaran', 'Patient'=>'Data Pasien',
+        'ReferralRecipient'=>'Penerima Referral', 'Receipt'=>'Penerimaan', 'Expense'=>'Pengeluaran', 'Patient'=>'Data Pasien',
         'ChartAccount'=>'Daftar Akun (COA)', 'ServiceUnit'=>'Unit Pelayanan', 'Guarantor'=>'Penjamin',
         'CashBankAccount'=>'Kas & Bank', 'ExpenseCategory'=>'Kategori Pengeluaran', 'FinancialGroup'=>'Group Laporan',
         'InsuranceMonthlyClaim'=>'Klaim & Piutang Asuransi', 'BpjsClaim'=>'Klaim BPJS',
@@ -30,7 +30,7 @@ class ActivityLogger
         if ($type === 'Expense' && $model->getAttribute('expense_type') === 'REFERRAL') $form = 'Pengeluaran Referal';
         $menu = match ($type) {
             'User' => 'Manajemen Akun',
-            'ChartAccount', 'ServiceUnit', 'Guarantor', 'CashBankAccount', 'ExpenseCategory', 'FinancialGroup' => 'Master Data',
+            'ReferralRecipient', 'ChartAccount', 'ServiceUnit', 'Guarantor', 'CashBankAccount', 'ExpenseCategory', 'FinancialGroup' => 'Master Data',
             'JournalEntry', 'JournalLine' => 'Jurnal',
             'InsuranceMonthlyClaim', 'BpjsClaim', 'BpjsClaimEvent', 'BpjsClaimPayment' => 'Klaim & Piutang Asuransi',
             default => $form,
@@ -57,7 +57,7 @@ class ActivityLogger
             'created_by'=>['users','name'], 'updated_by'=>['users','name'], 'cashier_id'=>['users','name'],
             'chart_account_id'=>['chart_accounts','name'], 'expense_account_id'=>['chart_accounts','name'],
             'revenue_account_id'=>['chart_accounts','name'], 'cash_bank_account_id'=>['cash_bank_accounts','name'],
-            'guarantor_id'=>['guarantors','name'], 'expense_category_id'=>['expense_categories','name'],
+            'referral_recipient_id'=>['referral_recipients','name'], 'guarantor_id'=>['guarantors','name'], 'expense_category_id'=>['expense_categories','name'],
             'service_unit_id'=>['service_units','name'], 'patient_id'=>['patients','name'],
             'receipt_id'=>['receipts','transaction_no'], 'journal_entry_id'=>['journal_entries','journal_no'],
             'financial_group_id'=>['financial_groups','name'],
