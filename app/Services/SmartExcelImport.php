@@ -26,7 +26,7 @@ class SmartExcelImport
             'expense_date'=>'Tanggal|Tanggal Transaksi|Date', 'referral_recipient_id'=>'Penerima Referral|Nama Penerima|Penerima Referal',
             'referral_patient_name'=>'Nama Pasien|Pasien', 'referral_medical_record_no'=>'No RM|Nomor RM',
             'referral_procedure'=>'Tindakan|Jenis Tindakan|SC RI', 'amount'=>'Nominal|Nominal Referral|Jumlah',
-            'description'=>'Keterangan|Deskripsi', 'chart_account_id'=>'COA|Kode COA|COA Referral',
+            'description'=>'Keterangan|Deskripsi',
             'payment_method'=>'Metode Pembayaran|Metode', 'cash_bank_account_id'=>'Kas Bank|Kas/Bank', 'expense_no'=>'Nomor Transaksi|No Transaksi',
         ];
         $common = ['amount' => 'Nominal|Jumlah|Total|Nilai', 'payment_method' => 'Metode Pembayaran|Payment Method', 'cash_bank_account_id' => 'Kas Bank|Rekening|Akun Kas|Cash Bank Account', 'guarantor_id' => 'Penjamin|Guarantor', 'service_type' => 'Jenis Layanan|Service Type'];
@@ -101,7 +101,6 @@ class SmartExcelImport
     {
         if ($module === 'referrals') return [
             'referral_recipient_id'=>\App\Models\ReferralRecipient::where('is_active', true)->get(),
-            'chart_account_id'=>ChartAccount::where('is_active', true)->where('type', 'EXPENSE')->where('is_referral', true)->get(),
             'cash_bank_account_id'=>CashBankAccount::where('is_active', true)->get(),
         ];
         return $module === 'receipts' ? [

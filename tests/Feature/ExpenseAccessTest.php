@@ -410,15 +410,15 @@ class ExpenseAccessTest extends TestCase
             }
             $this->actingAs($user);
             $this->get(route('accounting.referrals.index'))->assertOk();
-            $this->get(route('accounting.referrals.create'))->assertOk()->assertSee('Beban Referal');
+            $this->get(route('accounting.referrals.create'))->assertOk()->assertDontSee('name="chart_account_id"', false)->assertDontSee('name="receipt_id"', false);
             $recipient = \App\Models\ReferralRecipient::firstOrCreate(['name'=>'Dokter Referal']);
             $payload = ['referral_recipient_id'=>$recipient->id, 'referral_patient_name'=>'Pasien Uji', 'referral_medical_record_no'=>'RM-001', 'referral_procedure'=>'SC', 'expense_date'=>'2026-10-26', 'receipt_id'=>$receipt->id, 'chart_account_id'=>$account->id,
                 'referral_recipient'=>'Dokter Referal', 'amount'=>250000, 'payment_method'=>'CASH', 'cash_bank_account_id'=>$this->cash->id];
-            $this->post(route('accounting.referrals.store'), array_replace($payload, ['chart_account_id'=>$this->category->expense_account_id]))->assertSessionHasErrors('chart_account_id');
             $this->post(route('accounting.referrals.store'), $payload)->assertSessionHasNoErrors()->assertRedirect(route('accounting.referrals.index'));
             $expense = Expense::where('expense_type', 'REFERRAL')->firstOrFail();
             $journal = $expense->journal()->firstOrFail();
-            $this->post(route('accounting.referrals.store'), $payload)->assertSessionHasErrors('receipt_id');
+            $this->assertNull($expense->receipt_id);
+            $this->assertSame($account->id, $expense->chart_account_id);
             $this->get(route('accounting.referrals.edit', $expense))->assertOk();
             $this->put(route('accounting.referrals.update', $expense), array_replace($payload, ['amount'=>300000]))->assertSessionHasNoErrors();
             $this->assertEquals(300000, $journal->lines()->sum('debit'));

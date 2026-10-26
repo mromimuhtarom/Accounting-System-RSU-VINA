@@ -17,7 +17,7 @@ class ReferralRecipientTest extends ExpenseAccessTest
         return array_replace([
             'expense_date'=>'2026-10-26', 'referral_recipient_id'=>$recipient->id,
             'referral_patient_name'=>'Pasien Rahasia', 'referral_medical_record_no'=>'RM-RAHASIA-001',
-            'referral_procedure'=>'SC', 'chart_account_id'=>$account->id,
+            'referral_procedure'=>'SC',
             'amount'=>100000, 'payment_method'=>'CASH', 'cash_bank_account_id'=>DB::table('cash_bank_accounts')->value('id'),
         ], $overrides);
     }
@@ -196,4 +196,54 @@ class ReferralRecipientTest extends ExpenseAccessTest
         $this->post(route('accounting.referral-recipients.import'), [])->assertForbidden();
         $this->get(route('accounting.referrals.import'))->assertForbidden();
     }
+    public function test_referral_automatically_creates_one_coa_and_ignores_browser_mapping(): void
+    {
+        $recipient = ReferralRecipient::create(['name'=>'Penerima Otomatis']);
+        $payload = $this->payload($recipient);
+        ChartAccount::where('code', 'REF-TEST')->delete();
+        $payload['chart_account_id'] = DB::table('expense_categories')->value('expense_account_id');
+        $payload['receipt_id'] = 99999;
+        $this->post(route('accounting.referrals.store'), $payload)->assertSessionHasNoErrors();
+        $first = Expense::latest('id')->firstOrFail();
+        $account = ChartAccount::where('code', 'BEBAN-REFERAL')->firstOrFail();
+        $this->assertSame($account->id, $first->chart_account_id);
+        $this->assertNull($first->receipt_id);
+        $this->assertTrue($account->is_referral);
+        $this->assertSame('EXPENSE', $account->type);
+        $this->post(route('accounting.referrals.store'), $payload)->assertSessionHasNoErrors();
+        $this->assertSame(1, ChartAccount::where('is_referral', true)->count());
+        $this->assertSame($account->id, Expense::latest('id')->firstOrFail()->chart_account_id);
+    }
+
+    public function test_optional_evidence_is_private_validated_and_preserved_on_edit(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+        $recipient = ReferralRecipient::create(['name'=>'Penerima Bukti']);
+        $payload = $this->payload($recipient);
+        $payload['attachment'] = UploadedFile::fake()->create('kwitansi.pdf', 100, 'application/pdf');
+        $this->post(route('accounting.referrals.store'), $payload)->assertSessionHasNoErrors();
+        $expense = Expense::latest('id')->firstOrFail();
+        $path = $expense->attachment_path;
+        \Illuminate\Support\Facades\Storage::disk('local')->assertExists($path);
+        $this->get(route('accounting.referrals.attachment', $expense))->assertOk()->assertDownload('Bukti-Referal-'.$expense->id.'.pdf');
+        $this->put(route('accounting.referrals.update', $expense), $this->payload($recipient, ['amount'=>150000]))->assertSessionHasNoErrors();
+        $this->assertSame($path, $expense->fresh()->attachment_path);
+        $payload['attachment'] = UploadedFile::fake()->create('berbahaya.php', 10, 'text/x-php');
+        $this->post(route('accounting.referrals.store'), $payload)->assertSessionHasErrors('attachment');
+        $payload['attachment'] = UploadedFile::fake()->create('besar.pdf', 5121, 'application/pdf');
+        $this->post(route('accounting.referrals.store'), $payload)->assertSessionHasErrors('attachment');
+        $payload['attachment'] = UploadedFile::fake()->create('bukti-baru.pdf', 100, 'application/pdf');
+        $this->put(route('accounting.referrals.update', $expense), $payload)->assertSessionHasNoErrors();
+        \Illuminate\Support\Facades\Storage::disk('local')->assertMissing($path);
+        $newPath = $expense->fresh()->attachment_path;
+        \Illuminate\Support\Facades\Storage::disk('local')->assertExists($newPath);
+        $user = auth()->user();
+        $role = DB::table('roles')->insertGetId(['application_id'=>DB::table('applications')->value('id'),'code'=>'OWNER','name'=>'Owner']);
+        $user->roles()->sync([$role]); $user->unsetRelation('roles');
+        $this->get(route('accounting.referrals.attachment', $expense))->assertForbidden();
+        $user->roles()->sync([DB::table('roles')->where('code','KASIR')->value('id')]); $user->unsetRelation('roles');
+        $this->delete(route('accounting.referrals.destroy', $expense))->assertRedirect();
+        \Illuminate\Support\Facades\Storage::disk('local')->assertMissing($newPath);
+    }
+
 }

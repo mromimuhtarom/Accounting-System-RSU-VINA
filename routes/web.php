@@ -34,6 +34,7 @@ Route::middleware('auth')->group(function () {
         Route::resource('referral-recipients', \App\Http\Controllers\Accounting\ReferralRecipientController::class)->parameters(['referral-recipients'=>'recipient']);
         Route::match(['get', 'post'], '/referrals/import', [\App\Http\Controllers\Accounting\ExcelImportController::class, 'handle'])->defaults('module', 'referrals')->name('referrals.import');
         Route::get('/referrals/excel', [ReferralExpenseController::class, 'export'])->name('referrals.export');
+        Route::get('/referrals/{referral}/attachment', [ReferralExpenseController::class, 'attachment'])->name('referrals.attachment');
         Route::resource('referrals', ReferralExpenseController::class)->except(['show']);
         Route::post('/referrals/{referral}/journal', [ReferralExpenseController::class, 'generateJournal'])->name('referrals.journal');
     });

@@ -6,7 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\CashBankAccount;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
-use App\Models\Receipt;
+use App\Services\ReferralAccountService;
+use Illuminate\Support\Facades\Storage;
 use App\Services\JournalService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -48,27 +49,33 @@ class ReferralExpenseController extends Controller
     public function store(Request $request)
     {
         $data = $this->validated($request);
-        $receipt = !empty($data['receipt_id']) ? Receipt::findOrFail($data['receipt_id']) : null;
+        $data['chart_account_id'] = app(ReferralAccountService::class)->resolve()->id;
         $category = $this->referralCategory($data['chart_account_id']);
 
-        $data['patient_id'] = $receipt?->patient_id;
         $data['expense_no'] = 'REF-'
             . now()->format('YmdHis')
             . '-'
             . random_int(100, 999);
         $data['expense_type'] = 'REFERRAL';
         $data['expense_category_id'] = $category->id;
-        // COA khusus referal sudah divalidasi.
+        // COA ditentukan server; input COA dari browser tidak digunakan.
         $data['created_by'] = $request->user()->id;
         $data['status'] = 'ACTIVE';
         $data['description'] = ($data['description'] ?? null)
-            ?: 'Pengeluaran referal sesi ' . ($receipt?->transaction_no ?? $data['referral_patient_name']);
+            ?: 'Pengeluaran referal ' . $data['referral_patient_name'];
 
-        $posted = \Illuminate\Support\Facades\DB::transaction(function () use ($data, $request) {
-            $this->lockRecipient($data['referral_recipient_id']);
-            $expense = Expense::create($data);
-            return app(\App\Services\AutomaticJournalService::class)->expense($expense, $request->user()->id);
-        });
+        $path = $this->storeEvidence($request);
+        if ($path) $data['attachment_path'] = $path;
+        try {
+            $posted = \Illuminate\Support\Facades\DB::transaction(function () use ($data, $request) {
+                $this->lockRecipient($data['referral_recipient_id']);
+                $expense = Expense::create($data);
+                return app(\App\Services\AutomaticJournalService::class)->expense($expense, $request->user()->id);
+            });
+        } catch (\Throwable $e) {
+            if ($path) Storage::disk('local')->delete($path);
+            throw $e;
+        }
 
         return redirect()
             ->route('accounting.referrals.index')
@@ -93,20 +100,28 @@ class ReferralExpenseController extends Controller
         $this->ensureReferral($referral);
 
         $data = $this->validated($request, $referral->id);
-        $receipt = !empty($data['receipt_id']) ? Receipt::findOrFail($data['receipt_id']) : null;
+        $data['chart_account_id'] = app(ReferralAccountService::class)->resolve()->id;
         $category = $this->referralCategory($data['chart_account_id']);
 
-        $data['patient_id'] = $receipt?->patient_id;
         $data['expense_type'] = 'REFERRAL';
         $data['expense_category_id'] = $category->id;
-        // COA khusus referal sudah divalidasi.
+        // COA ditentukan server; input COA dari browser tidak digunakan.
         $data['description'] = ($data['description'] ?? null)
-            ?: 'Pengeluaran referal sesi ' . ($receipt?->transaction_no ?? $data['referral_patient_name']);
+            ?: 'Pengeluaran referal ' . $data['referral_patient_name'];
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($referral, $data) {
-            $this->lockRecipient($data['referral_recipient_id'], $referral->referral_recipient_id);
-            app(\App\Services\ExpenseTransactionService::class)->update($referral, $data);
-        });
+        $path = $this->storeEvidence($request);
+        $oldPath = $referral->attachment_path;
+        if ($path) $data['attachment_path'] = $path;
+        try {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($referral, $data) {
+                $this->lockRecipient($data['referral_recipient_id'], $referral->referral_recipient_id);
+                app(\App\Services\ExpenseTransactionService::class)->update($referral, $data);
+            });
+        } catch (\Throwable $e) {
+            if ($path) Storage::disk('local')->delete($path);
+            throw $e;
+        }
+        if ($path && $oldPath && str_starts_with($oldPath, 'referral-evidence/')) Storage::disk('local')->delete($oldPath);
 
         return redirect()
             ->route('accounting.referrals.index')
@@ -132,16 +147,8 @@ class ReferralExpenseController extends Controller
 
     private function formData(?Expense $editing = null): array
     {
-        $receipts = Receipt::with(['account', 'referralExpense'])
-            ->where('status', 'ACTIVE')
-            ->latest('transaction_date')
-            ->latest('id')
-            ->get();
-
         return [
-            'sessions' => $receipts,
             'recipients' => \App\Models\ReferralRecipient::where('is_active', true)->when($editing?->referral_recipient_id, fn ($q) => $q->orWhere('id', $editing->referral_recipient_id))->orderBy('name')->get(),
-            'accounts' => \App\Models\ChartAccount::where('is_active', true)->where('type', 'EXPENSE')->where('is_referral', true)->orderBy('code')->get(),
             'cashBanks' => CashBankAccount::where('is_active', true)
                 ->orderBy('name')
                 ->get(),
@@ -153,23 +160,8 @@ class ReferralExpenseController extends Controller
         Request $request,
         ?int $ignoreExpenseId = null
     ): array {
-        $uniqueSession = Rule::unique('expenses', 'receipt_id')
-            ->where(
-                fn ($q) => $q->where('expense_type', 'REFERRAL')
-            );
-
-        if ($ignoreExpenseId) {
-            $uniqueSession->ignore($ignoreExpenseId);
-        }
-
         $data = $request->validate([
             'expense_date' => ['required', 'date'],
-            'chart_account_id' => ['required', Rule::exists('chart_accounts', 'id')->where('is_active', true)->where('type', 'EXPENSE')->where('is_referral', true)],
-            'receipt_id' => [
-                'nullable',
-                Rule::exists('receipts', 'id')->where('status', 'ACTIVE'),
-                $uniqueSession,
-            ],
             'referral_recipient_id' => ['required', Rule::exists('referral_recipients', 'id')->where(function ($q) use ($ignoreExpenseId) {
                 $existing = $ignoreExpenseId ? Expense::findOrFail($ignoreExpenseId)->referral_recipient_id : null;
                 $q->where('is_active', true)->when($existing, fn ($q) => $q->orWhere('id', $existing));
@@ -178,6 +170,7 @@ class ReferralExpenseController extends Controller
             'referral_medical_record_no' => ['required', 'string', 'max:100'],
             'referral_procedure' => ['required', 'in:SC,RI'],
             'amount' => ['required', 'numeric', 'gt:0'],
+            'attachment' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
             'payment_method' => [
                 'required',
                 'in:CASH,TRANSFER,QRIS,CARD',
@@ -196,9 +189,8 @@ class ReferralExpenseController extends Controller
                 'string',
                 'max:500',
             ],
-        ], [
-            'receipt_id.unique' => 'Sesi pemasukan tersebut sudah memiliki referal. Satu sesi hanya boleh memiliki satu referal.',
         ]);
+        unset($data['attachment']);
         $data['referral_patient_name'] = trim($data['referral_patient_name']);
         $data['referral_medical_record_no'] = mb_strtoupper(trim($data['referral_medical_record_no']));
         return $data;
@@ -207,8 +199,26 @@ class ReferralExpenseController extends Controller
     public function destroy(Expense $referral)
     {
         $this->ensureReferral($referral);
+        $path = $referral->attachment_path;
         app(\App\Services\ExpenseTransactionService::class)->delete($referral);
+        if ($path && str_starts_with($path, 'referral-evidence/')) Storage::disk('local')->delete($path);
         return redirect()->route('accounting.referrals.index')->with('success', 'Pengeluaran referal berhasil dihapus.');
+    }
+
+    private function storeEvidence(Request $request): ?string
+    {
+        if (!$request->hasFile('attachment')) return null;
+        $path = $request->file('attachment')->store('referral-evidence', 'local');
+        if (!$path) throw \Illuminate\Validation\ValidationException::withMessages(['attachment'=>'Bukti transaksi gagal disimpan. Silakan coba kembali.']);
+        return $path;
+    }
+
+    public function attachment(Expense $referral)
+    {
+        $this->ensureReferral($referral);
+        $path = $referral->attachment_path;
+        abort_unless($path && str_starts_with($path, 'referral-evidence/') && !str_contains($path, '..') && Storage::disk('local')->exists($path), 404);
+        return Storage::disk('local')->download($path, 'Bukti-Referal-'.$referral->id.'.'.pathinfo($path, PATHINFO_EXTENSION), ['X-Content-Type-Options'=>'nosniff']);
     }
 
     public function export(Request $request)
