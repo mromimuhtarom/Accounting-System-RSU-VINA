@@ -209,7 +209,7 @@
 <script src="{{ asset('public/js/accounting-ui.js') }}?v=20261025-perf-1"></script>
 <script src="{{ asset('public/js/searchable-select.js') }}?v=20261025-1"></script>
 @stack('scripts')
-<script src="{{ asset('public/js/form-controls.js') }}?v=20261025-1"></script>
+<script src="{{ asset('public/js/form-controls.js') }}?v=20261028-batch"></script>
 <script src="{{ asset('public/js/idle-session.js') }}?v=20261025-1"
     data-activity-url="{{ route('session.activity') }}" data-logout-url="{{ route('logout') }}"
     data-login-url="{{ route('login', ['expired' => 1]) }}"

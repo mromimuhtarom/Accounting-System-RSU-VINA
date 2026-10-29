@@ -41,21 +41,19 @@ class ReferralExpenseController extends Controller
     public function create()
     {
         return view(
-            'accounting.referrals.create',
-            $this->formData()
+            request()->boolean('multiple') ? 'transactions.batch' : 'accounting.referrals.create',
+            $this->formData() + ['module'=>'referrals', 'action'=>route('accounting.referrals.store'), 'singleUrl'=>route('accounting.referrals.create'), 'returnUrl'=>route('accounting.referrals.index')]
         );
     }
 
     public function store(Request $request)
     {
+        if ($request->exists('rows')) return app(\App\Services\BatchTransactionService::class)->store($request, fn ($row) => $this->validated($row), fn ($row) => $this->store($row), 'accounting.referrals.index');
         $data = $this->validated($request);
         $data['chart_account_id'] = app(ReferralAccountService::class)->resolve()->id;
         $category = $this->referralCategory($data['chart_account_id']);
 
-        $data['expense_no'] = 'REF-'
-            . now()->format('YmdHis')
-            . '-'
-            . random_int(100, 999);
+        $data['expense_no'] = 'REF-' . (string) \Illuminate\Support\Str::ulid();
         $data['expense_type'] = 'REFERRAL';
         $data['expense_category_id'] = $category->id;
         // COA ditentukan server; input COA dari browser tidak digunakan.
@@ -210,6 +208,7 @@ class ReferralExpenseController extends Controller
         if (!$request->hasFile('attachment')) return null;
         $path = $request->file('attachment')->store('referral-evidence', 'local');
         if (!$path) throw \Illuminate\Validation\ValidationException::withMessages(['attachment'=>'Bukti transaksi gagal disimpan. Silakan coba kembali.']);
+        \App\Services\BatchTransactionService::trackFile($request, 'local', $path);
         return $path;
     }
 

@@ -52,16 +52,17 @@ class ExpenseController extends Controller
 
     public function create(Request $request)
     {
-        return view('accounting.expenses.create', array_merge(
+        return view($request->boolean('multiple') ? 'transactions.batch' : 'accounting.expenses.create', array_merge(
             $this->formData(),
-            ['routePrefix' => $this->routePrefix($request)]
+            ['routePrefix' => $this->routePrefix($request), 'module'=>'expenses', 'action'=>route($this->routePrefix($request).'.store'), 'singleUrl'=>route($this->routePrefix($request).'.create'), 'returnUrl'=>route($this->routePrefix($request).'.index')]
         ));
     }
 
     public function store(Request $request)
     {
+        if ($request->exists('rows')) return app(\App\Services\BatchTransactionService::class)->store($request, fn ($row) => $this->validated($row), fn ($row) => $this->store($row), $this->routePrefix($request).'.index');
         $data = $this->validated($request);
-        $data['expense_no'] = 'EXP-' . now()->format('YmdHis') . '-' . random_int(100, 999);
+        $data['expense_no'] = 'EXP-' . (string) \Illuminate\Support\Str::ulid();
         $data['expense_type'] = 'GENERAL';
         $data['created_by'] = $request->user()->id;
         $data['status'] = 'ACTIVE';
@@ -70,7 +71,10 @@ class ExpenseController extends Controller
             $data['attachment_path'] = $request
                 ->file('attachment')
                 ->store('expenses', 'public');
+            if (!$data['attachment_path']) throw ValidationException::withMessages(['attachment'=>'Bukti transaksi gagal disimpan.']);
+            \App\Services\BatchTransactionService::trackFile($request, 'public', $data['attachment_path']);
         }
+        unset($data['attachment']);
 
         Expense::create($data);
 

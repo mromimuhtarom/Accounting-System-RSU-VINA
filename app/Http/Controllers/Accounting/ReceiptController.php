@@ -62,7 +62,8 @@ class ReceiptController extends Controller
     {
         $this->requireAccountingReceiptEditor();
 
-        return view('accounting.receipts.create', [
+        return view(request()->boolean('multiple') ? 'transactions.batch' : 'accounting.receipts.create', [
+            'module'=>'receipts', 'action'=>route('accounting.receipts.store'), 'singleUrl'=>route('accounting.receipts.create'), 'returnUrl'=>route('accounting.receipts.index'),
             'accounts' => $this->accounts(),
             'guarantors' => \App\Models\Guarantor::query()
                 ->orderBy('name')
@@ -73,11 +74,12 @@ class ReceiptController extends Controller
     public function store(Request $request)
     {
         $this->requireAccountingReceiptEditor();
+        if ($request->exists('rows')) return app(\App\Services\BatchTransactionService::class)->store($request, fn ($row) => $this->validatedData($row), fn ($row) => $this->store($row), 'accounting.receipts.index');
         $data = $this->validatedData($request);
         $data['transaction_no'] = 'RCV-'
             . now()->format('YmdHis')
             . '-'
-            . random_int(100, 999);
+            . (string) \Illuminate\Support\Str::ulid();
         $data['cashier_id'] = $request->user()->id;
         $data['status'] = 'ACTIVE';
 
@@ -206,6 +208,8 @@ class ReceiptController extends Controller
             'hd' => ['nullable', 'string', 'max:100'],
             'rs' => ['nullable', 'string', 'max:100'],
             'amount' => ['required', 'numeric', 'gt:0'],
+            'guarantor_id' => ['nullable', 'integer', 'exists:guarantors,id'],
+            'service_type' => ['nullable', 'in:RAWAT_JALAN,RAWAT_INAP,MCU,LAINNYA'],
         ];
 
         if ($includeStatus) {

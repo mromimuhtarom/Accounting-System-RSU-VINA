@@ -1,5 +1,6 @@
 @extends('layouts.app')
 @section('content')
+<div class="card actions"><a class="btn primary" href="{{ route($routePrefix . '.create', ['multiple'=>1]) }}">Input Banyak Sekaligus</a></div>
 <div class="page-head">
     <div><h1 class="page-title">{{ $isInsurance ? 'Input Penerimaan Asuransi' : 'Input Penerimaan' }}</h1><p class="page-sub">Format Penerimaan seperti Accounting. Informasi pasien cukup ditulis dalam Keterangan.</p></div>
     <a class="btn" href="{{ route($routePrefix . '.index') }}">Lihat Semua Penerimaan</a>

@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
+<div class="card actions"><a class="btn primary" href="{{ route('accounting.receipts.create', ['multiple'=>1]) }}">Input Banyak Sekaligus</a></div>
 <div class="page-head">
     <div>
         <h1 class="page-title">Input Pemasukan</h1>
