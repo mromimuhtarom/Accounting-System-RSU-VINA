@@ -8,5 +8,5 @@
 <span id="report-pdf-status" role="status" aria-live="polite"></span>
 @push('scripts')
 <script src="{{ asset('public/js/vendor/html2pdf.bundle.min.js') }}" defer></script>
-<script src="{{ asset('public/js/report-pdf.js') }}?v=20261025-crop-fix" defer></script>
+<script src="{{ asset('public/js/report-pdf.js') }}?v=20261029-assets" defer></script>
 @endpush

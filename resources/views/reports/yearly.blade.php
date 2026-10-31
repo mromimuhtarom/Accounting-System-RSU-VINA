@@ -119,5 +119,6 @@
 </div>
 
 @include('reports.partials.referral-summary')
+@include('reports.partials.asset-charts')
 </div>
 @endsection

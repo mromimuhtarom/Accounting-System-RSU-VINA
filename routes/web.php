@@ -15,6 +15,46 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\InsuranceClaimController;
 use App\Http\Controllers\InsuranceExcelController;
 
+Route::middleware('auth')->prefix('aktiva')->name('assets.')->group(function () {
+    Route::get('/', [\App\Http\Controllers\AssetController::class, 'index'])->name('index');
+    Route::get('/input', [\App\Http\Controllers\AssetController::class, 'create'])->name('create');
+    Route::get('/export-excel', [\App\Http\Controllers\AssetController::class, 'export'])->name('export');
+    Route::get('/{asset}/edit', [\App\Http\Controllers\AssetController::class, 'edit'])->whereNumber('asset')->name('edit');
+    Route::put('/{asset}', [\App\Http\Controllers\AssetController::class, 'update'])->whereNumber('asset')->name('update');
+    Route::delete('/{asset}', [\App\Http\Controllers\AssetController::class, 'destroy'])->whereNumber('asset')->name('destroy');
+    Route::post('/', [\App\Http\Controllers\AssetController::class, 'store'])->name('store');
+    Route::post('/periods', [\App\Http\Controllers\AssetController::class, 'period'])->name('periods.store');
+    Route::post('/periods/{period}/close', [\App\Http\Controllers\AssetController::class, 'closePeriod'])->name('periods.close');
+    Route::get('/{asset}', [\App\Http\Controllers\AssetController::class, 'show'])->whereNumber('asset')->name('show');
+    Route::get('/{asset}/qr', [\App\Http\Controllers\AssetController::class, 'qr'])->name('qr');
+    Route::post('/{asset}/operation', [\App\Http\Controllers\AssetController::class, 'operation'])->name('operation');
+    Route::post('/{asset}/capitalize', [\App\Http\Controllers\AssetController::class, 'capitalize'])->name('capitalize');
+    Route::post('/{asset}/approve', [\App\Http\Controllers\AssetController::class, 'approve'])->name('approve');
+    Route::post('/{asset}/post', [\App\Http\Controllers\AssetController::class, 'post'])->name('post');
+    Route::post('/{asset}/depreciate', [\App\Http\Controllers\AssetController::class, 'depreciate'])->name('depreciate');
+    Route::post('/{asset}/dispose', [\App\Http\Controllers\AssetController::class, 'dispose'])->name('dispose');
+});
+
+Route::middleware('auth')->group(function () {
+    Route::post('/asisten/tanya',[\App\Http\Controllers\SystemAssistantController::class,'ask'])->middleware('throttle:30,1')->name('assistant.ask');
+    Route::get('/asisten/panduan',[\App\Http\Controllers\SystemAssistantController::class,'guide'])->name('assistant.guide');
+    Route::get('/asisten/foto',[\App\Http\Controllers\SystemAssistantController::class,'avatar'])->name('assistant.avatar');
+    Route::get('/accounting/saldo-awal',[\App\Http\Controllers\Accounting\OpeningBalanceController::class,'index'])->name('opening-balances.index');
+    Route::post('/accounting/saldo-awal',[\App\Http\Controllers\Accounting\OpeningBalanceController::class,'store'])->name('opening-balances.store');
+    Route::post('/accounting/saldo-awal/{balance}/approve',[\App\Http\Controllers\Accounting\OpeningBalanceController::class,'approve'])->name('opening-balances.approve');
+    Route::post('/accounting/saldo-awal/{balance}/post',[\App\Http\Controllers\Accounting\OpeningBalanceController::class,'post'])->name('opening-balances.post');
+    Route::post('/accounting/saldo-awal/{balance}/draft',[\App\Http\Controllers\Accounting\OpeningBalanceController::class,'returnToDraft'])->name('opening-balances.draft');
+    Route::get('/accounting/ruang-kerja',[\App\Http\Controllers\AccountingWorkspaceController::class,'index'])->name('accounting.workspace');
+    Route::get('/accounting/pencatatan-nonkas',[\App\Http\Controllers\AccountingWorkspaceController::class,'create'])->name('accounting.entries.create');
+    Route::post('/accounting/pencatatan-nonkas',[\App\Http\Controllers\AccountingWorkspaceController::class,'store'])->name('accounting.entries.store');
+    Route::get('/reports/analisis-saldo',[\App\Http\Controllers\AccountingWorkspaceController::class,'analysis'])->name('accounting.analysis');
+    Route::get('/reports/sumber-keuangan',[\App\Http\Controllers\FinancialPositionController::class,'sources'])->name('reports.financial-sources');
+    Route::get('/reports/sumber-keuangan/transaksi/{kind}',[\App\Http\Controllers\FinancialPositionController::class,'sourceTransactions'])->whereIn('kind',['receipts','expenses'])->name('reports.financial-source-transactions');
+    Route::get('/reports/neraca',[\App\Http\Controllers\FinancialPositionController::class,'index'])->name('reports.financial-position');
+    Route::get('/reports/neraca-saldo',[\App\Http\Controllers\FinancialPositionController::class,'trialBalance'])->name('reports.financial-trial-balance');
+    Route::get('/reports/neraca/akun/{account}',[\App\Http\Controllers\FinancialPositionController::class,'ledger'])->whereNumber('account')->name('reports.financial-ledger');
+});
+
 Route::get('/', fn () => redirect()->route('login'));
 
 Route::middleware('guest')->group(function () {
@@ -108,6 +148,8 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('role:IT')->group(function () {
         Route::prefix('it')->name('it.')->group(function () {
+            Route::get('/asisten/profil',[\App\Http\Controllers\IT\AssistantProfileController::class,'edit'])->name('assistant-profile.edit');
+            Route::put('/asisten/profil',[\App\Http\Controllers\IT\AssistantProfileController::class,'update'])->name('assistant-profile.update');
             Route::get('/activity-logs', [\App\Http\Controllers\IT\ActivityLogController::class, 'index'])->name('activity-logs.index');
             Route::get('/activity-logs/{activityLog}', [\App\Http\Controllers\IT\ActivityLogController::class, 'show'])->name('activity-logs.show');
             Route::get('/session-logs', [\App\Http\Controllers\IT\ActivityLogController::class, 'index'])->name('session-logs.index');

@@ -6,6 +6,7 @@
 <title>Login Accounting | {{ config('accounting.hospital_name','RS. Vina Estetica') }}</title>
 <link rel="stylesheet" href="{{ asset('public/css/accounting.css') }}?v=20261025-perf-1">
 <link rel="stylesheet" href="{{ asset('public/css/form-controls.css') }}?v=20261025-1">
+<link rel="stylesheet" href="{{ asset('public/css/usability.css') }}?v=20261029-2">
 </head>
 <body>
 <div class="login-page">

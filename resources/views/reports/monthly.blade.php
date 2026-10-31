@@ -169,5 +169,6 @@
     <div class="grand-result"><span>Surplus / (Defisit)</span><strong class="{{ $surplus < 0 ? 'text-danger' : 'text-positive' }}">Rp {{ number_format($surplus, 0, ',', '.') }}</strong></div>
 </div>
 @include('reports.partials.referral-summary')
+@include('reports.partials.asset-charts')
 </div>
 @endsection

@@ -28,7 +28,7 @@
                 .pdf-export-stage .report-stats{display:grid;grid-template-columns:repeat(3,1fr)}
                 .pdf-export-stage .stat{font-size:28px}
                 .pdf-export-stage .card{box-shadow:none;max-width:100%;overflow:visible}
-                .pdf-export-stage .table-responsive,.pdf-export-stage .yearly-table-wrap,.pdf-export-stage .rsuve-claim-table,.pdf-export-stage .rsuve-year-scroll{overflow:visible!important}
+                .pdf-export-stage .table-wrap,.pdf-export-stage .table-responsive,.pdf-export-stage .yearly-table-wrap,.pdf-export-stage .rsuve-claim-table,.pdf-export-stage .rsuve-year-scroll{overflow:visible!important}
                 .pdf-export-stage table{width:100%!important;min-width:0!important;table-layout:fixed}
                 .pdf-export-stage th,.pdf-export-stage td{white-space:normal!important;overflow-wrap:anywhere;min-width:0!important;position:static!important}
                 .pdf-export-stage .yearly-table th,.pdf-export-stage .yearly-table td{font-size:12px;padding:9px 5px}
@@ -38,15 +38,23 @@
                 .pdf-export-stage .claim-chart-row{grid-template-columns:100px minmax(0,1fr) 180px}
                 .pdf-export-stage .claim-chart-track{grid-row:auto;grid-column:auto}
                 .pdf-export-stage .claim-chart-value{grid-row:auto;grid-column:auto}
+                .pdf-export-stage .asset-report-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
+                .pdf-export-stage .asset-report-stat strong{font-size:23px}
+                .pdf-export-stage .asset-report-card{padding:20px;break-inside:avoid}
+                .pdf-export-stage .asset-chart-label{display:flex;justify-content:space-between;flex-wrap:wrap}
+                .pdf-export-stage .asset-chart-track{overflow:hidden!important}
+                .pdf-export-stage .asset-report-caption{font-size:14px;line-height:1.6}
+                .pdf-export-stage .asset-trend-row{padding:6px 0}
+                .pdf-export-stage .asset-trend-row .asset-chart-label{margin:0 0 4px;font-size:13px}
             `;
             stage.append(styles);
             document.body.append(stage);
             const source = document.getElementById('report-pdf-content').cloneNode(true);
             source.removeAttribute('id');
-            source.querySelectorAll('form,script,style').forEach(node => node.remove());
+            source.querySelectorAll('form,script,style,[data-pdf-exclude]').forEach(node => node.remove());
             if (button.dataset.empty === '1') {
                 const empty = document.createElement('p');
-                empty.textContent = 'Belum ada transaksi pada periode ini.';
+                empty.textContent = 'Belum ada transaksi penerimaan/pengeluaran pada periode ini. Inventaris dan aktiva disajikan terpisah.';
                 source.querySelector('.page-head').after(empty);
             }
             const identity = document.createElement('div');
@@ -63,6 +71,9 @@
             // Flatten only layout wrappers so each card can flow across PDF pages.
             source.querySelectorAll('.report-grid > section').forEach(node => node.replaceWith(...node.children));
             source.querySelectorAll('.report-grid,.rsuve-month-chart').forEach(node => node.replaceWith(...node.children));
+            // Asset charts become independent PDF sections so a long chart group
+            // never causes the complete inventory section to be clipped or shrunk.
+            source.querySelectorAll('[data-pdf-flatten]').forEach(node => node.replaceWith(...node.children));
             const units = [identity, ...source.children];
             const fragments = [];
             for (const unit of units) {

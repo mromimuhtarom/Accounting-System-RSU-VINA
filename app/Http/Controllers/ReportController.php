@@ -67,8 +67,9 @@ class ReportController extends Controller
                     'total' => array_sum(array_column($byService, 'submitted'))];
             })->values();
 
+        $assetReport=\Illuminate\Support\Facades\Gate::allows('viewAny',\App\Models\Asset::class) ? app(\App\Services\AssetReporting::class)->summary($year,$month) : null;
         return view('reports.monthly', compact(
-            'month', 'year', 'start', 'income', 'expense', 'totalIncome', 'totalExpense', 'surplus', 'claimsByGuarantor', 'referralSummary'
+            'month', 'year', 'start', 'income', 'expense', 'totalIncome', 'totalExpense', 'surplus', 'claimsByGuarantor', 'referralSummary','assetReport'
         ));
     }
 
@@ -109,9 +110,10 @@ class ReportController extends Controller
         $totalExpense = array_sum($expenseMonths);
         $surplus = $totalIncome - $totalExpense;
 
+        $assetReport=\Illuminate\Support\Facades\Gate::allows('viewAny',\App\Models\Asset::class) ? app(\App\Services\AssetReporting::class)->summary($year) : null;
         return view('reports.yearly', compact(
             'year', 'income', 'expense', 'incomeMonths', 'expenseMonths', 'surplusMonths',
-            'totalIncome', 'totalExpense', 'surplus', 'referralSummary'
+            'totalIncome', 'totalExpense', 'surplus', 'referralSummary','assetReport'
         ));
     }
 

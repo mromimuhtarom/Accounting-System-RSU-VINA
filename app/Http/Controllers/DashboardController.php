@@ -12,6 +12,7 @@ class DashboardController extends Controller
     public function __invoke(Request $request)
     {
         $role = strtoupper(trim((string) ($request->user()->accountingRole() ?? '')));
+        if (in_array($role, ['PETUGAS_ASET', 'ADMIN_ASET'], true)) return redirect()->route('assets.index');
         if ($role === 'IT') return app(\App\Http\Controllers\IT\DashboardController::class)->index($request);
         if ($role === 'ASURANSI') {
             $year = max(2020,min(2100,(int)$request->input('year',now()->year)));
@@ -78,6 +79,13 @@ class DashboardController extends Controller
         if (in_array($role, ['KASIR','ACCOUNTING','ADMIN_ACCOUNTING','KEPALA_KEUANGAN','ATASAN','FINANCE','DIREKTUR','OWNER'], true)) {
             $referralSummary = app(\App\Services\ReferralSummary::class)->rows(sprintf('%04d-01-01', $year), sprintf('%04d-12-31', $year));
         }
-        return view('dashboard', compact('role','stats','latestReceipts','guarantorComposition','year','referralSummary'));
+        $assetReport = \Illuminate\Support\Facades\Gate::allows('viewAny',\App\Models\Asset::class)
+            ? app(\App\Services\AssetReporting::class)->summary($year) : null;
+        $financialPosition = null;
+        if (\Illuminate\Support\Facades\Gate::allows('viewAny', \App\Models\OpeningBalance::class) && $year <= (int) now('Asia/Jakarta')->year) {
+            $asOf = min(sprintf('%04d-12-31', $year), now('Asia/Jakarta')->toDateString());
+            $financialPosition = app(\App\Services\FinancialPosition::class)->at($asOf);
+        }
+        return view('dashboard', compact('role','stats','latestReceipts','guarantorComposition','year','referralSummary','assetReport','financialPosition'));
     }
 }

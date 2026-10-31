@@ -1,0 +1,5 @@
+@extends('layouts.app')
+@section('content')
+<div class="card"><h2>Jurnal sumber · {{ $account->code }} — {{ $account->name }}</h2><p>Sampai {{ $date }} · Saldo debit dikurangi kredit: Rp {{ \App\Services\LedgerAmounts::display($net) }}</p><a class="btn" href="{{ route('reports.financial-position',['as_of'=>$date]) }}">Kembali ke Neraca</a></div>
+<div class="card table-wrap"><table><thead><tr><th>Tanggal</th><th>Jurnal / Referensi</th><th>Keterangan</th><th>Debit</th><th>Kredit</th></tr></thead><tbody>@forelse($lines as $line)<tr><td>{{ $line->journal->journal_date->format('d/m/Y') }}</td><td>{{ $line->journal->journal_no }}<br>{{ $line->journal->reference }}</td><td>{{ $line->journal->description }}<br>{{ $line->description }}</td><td>{{ \App\Services\LedgerAmounts::display(\App\Services\LedgerAmounts::cents($line->debit)) }}</td><td>{{ \App\Services\LedgerAmounts::display(\App\Services\LedgerAmounts::cents($line->credit)) }}</td></tr>@empty<tr><td colspan="5">Belum ada jurnal terposting untuk akun ini sampai tanggal pilihan.</td></tr>@endforelse</tbody></table>{{ $lines->links() }}</div>
+@endsection

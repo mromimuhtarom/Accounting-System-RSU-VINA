@@ -1,0 +1,1 @@
+<span class="assistant-avatar-wrap">@if($assistantPhotoUrl)<img src="{{ $assistantPhotoUrl }}" alt="" class="assistant-avatar" data-assistant-avatar>@endif<span class="assistant-avatar assistant-avatar-fallback" @if($assistantPhotoUrl) hidden @endif aria-hidden="true">{{ mb_strtoupper(mb_substr($assistantProfile->name,0,1)) }}</span></span>

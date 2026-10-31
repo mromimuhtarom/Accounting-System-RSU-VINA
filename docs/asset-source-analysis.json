@@ -1,0 +1,1397 @@
+{
+    "INVENTARIS HARDWATRE & soft .xlsx": {
+        "Sheet1": {
+            "rows": 151,
+            "columns": "D",
+            "nonempty_rows": 117,
+            "sample": {
+                "2": {
+                    "A": "Daftar Inventaris Hardware MANAJEMEN DATA ELEKTRONIK \nRSU VINA ESTETICA"
+                },
+                "4": {
+                    "A": "No",
+                    "B": "Posisi Unit",
+                    "C": "Nama Perangkat",
+                    "D": "Jumlah"
+                },
+                "5": {
+                    "A": 1,
+                    "B": "Rekam Medis \/ Pendaftaran R. Inap",
+                    "C": "CPU",
+                    "D": 1
+                },
+                "6": {
+                    "C": "Monitor CPU",
+                    "D": 1
+                },
+                "7": {
+                    "C": "Keyboard",
+                    "D": 1
+                },
+                "8": {
+                    "C": "Mouse",
+                    "D": 1
+                },
+                "9": {
+                    "C": "Finger Print",
+                    "D": 1
+                },
+                "10": {
+                    "C": "Kamera",
+                    "D": 1
+                },
+                "11": {
+                    "C": "Printer Epson",
+                    "D": 1
+                },
+                "12": {
+                    "C": "Monitor Ketersediaan Kamar",
+                    "D": 1
+                },
+                "13": {
+                    "C": "Mesin \/ CPU CCTV lengkap",
+                    "D": 1
+                },
+                "14": {
+                    "C": "Monitor CCTV ",
+                    "D": 1
+                },
+                "15": {
+                    "C": "Pemancar Wifi",
+                    "D": 1
+                },
+                "16": {
+                    "A": 2,
+                    "B": "Kasir",
+                    "C": "CPU",
+                    "D": 2
+                }
+            },
+            "column_profile": {
+                "A": {
+                    "populated": 25
+                },
+                "B": {
+                    "populated": 24
+                },
+                "C": {
+                    "populated": 116
+                },
+                "D": {
+                    "populated": 115
+                }
+            }
+        },
+        "Sheet2": {
+            "rows": 106,
+            "columns": "D",
+            "nonempty_rows": 68,
+            "sample": {
+                "2": {
+                    "A": "Daftar Inventaris Software MANAJEMEN DATA ELEKTRONIK \nRSU VINA ESTETICA"
+                },
+                "4": {
+                    "A": "No",
+                    "B": "Posisi Unit",
+                    "C": "Nama Aplikasi \/ Software",
+                    "D": "Jumlah"
+                },
+                "5": {
+                    "A": 1,
+                    "B": "Rekam Medis \/ Pendaftaran R. Inap",
+                    "C": "Ms Office",
+                    "D": 2
+                },
+                "6": {
+                    "C": "Google Chrome",
+                    "D": 2
+                },
+                "7": {
+                    "C": "Windows 10 64 Bit",
+                    "D": 2
+                },
+                "9": {
+                    "A": 2,
+                    "B": "Kasir",
+                    "C": "Ms Office",
+                    "D": 2
+                },
+                "10": {
+                    "C": "Google Chrome",
+                    "D": 2
+                },
+                "11": {
+                    "C": "Windows 7 64 Bit",
+                    "D": 2
+                },
+                "12": {
+                    "A": 3,
+                    "B": "IGD",
+                    "C": "Ms Office",
+                    "D": 1
+                },
+                "13": {
+                    "C": "Windows 7 64 Bit",
+                    "D": 1
+                },
+                "14": {
+                    "C": "Google Chrome",
+                    "D": 1
+                },
+                "15": {
+                    "A": 4,
+                    "B": "RUANG OK",
+                    "C": "Ms Office",
+                    "D": 1
+                },
+                "16": {
+                    "C": "Windows 7 64 Bit",
+                    "D": 1
+                },
+                "17": {
+                    "C": "Google Chrome",
+                    "D": 1
+                }
+            },
+            "column_profile": {
+                "A": {
+                    "populated": 22
+                },
+                "B": {
+                    "populated": 21
+                },
+                "C": {
+                    "populated": 67
+                },
+                "D": {
+                    "populated": 66
+                }
+            }
+        }
+    },
+    "Format Import Alkes (2).xls": {
+        "Format Import Alkes.xls": {
+            "rows": 1433,
+            "columns": "P",
+            "nonempty_rows": 1432,
+            "sample": {
+                "1": {
+                    "A": "Format Import Alat Kesehatan",
+                    "F": "RS Umum Vina Estetica"
+                },
+                "2": {
+                    "A": "Kode Faskes",
+                    "B": 1275276
+                },
+                "3": {
+                    "A": "Form",
+                    "B": "f3"
+                },
+                "5": {
+                    "A": "mark",
+                    "B": "Keterangan",
+                    "F": "Ada",
+                    "G": "No seri",
+                    "H": "Merk",
+                    "I": "Type",
+                    "J": "Thn Pengadaan",
+                    "K": "Berfungi",
+                    "L": "Harga",
+                    "M": "Pendanaan",
+                    "N": "Distributor",
+                    "O": "AKL\/AKD",
+                    "P": "Keterangan"
+                },
+                "6": {
+                    "A": "*",
+                    "B": "Pelayanan Medik dan Keperawatan"
+                },
+                "7": {
+                    "A": "**",
+                    "C": "Pelayanan Rawat Jalan"
+                },
+                "8": {
+                    "A": "***",
+                    "D": "Ruangan Klinik Sp. Penyakit Dalam"
+                },
+                "9": {
+                    "A": 102,
+                    "D": 10903022,
+                    "E": "Examination Bed",
+                    "F": "Ya",
+                    "G": 2,
+                    "H": "unregister",
+                    "I": "unregister",
+                    "J": 2015,
+                    "K": "Baik",
+                    "L": 950000,
+                    "M": "BLU"
+                },
+                "10": {
+                    "A": 102,
+                    "D": 20501033,
+                    "E": "Stetoskop Dewasa",
+                    "F": "Ya",
+                    "G": 502190139,
+                    "H": "RIESTER",
+                    "I": 124,
+                    "J": 2018,
+                    "K": "Baik",
+                    "L": 900000,
+                    "M": "APBN",
+                    "P": "BAIK"
+                },
+                "11": {
+                    "A": 102,
+                    "D": 10901006,
+                    "E": "Timbangan dewasa; ",
+                    "F": "Ya",
+                    "G": 1,
+                    "H": "SMIC",
+                    "I": "-unknown-",
+                    "J": 2018,
+                    "K": "Baik",
+                    "L": 1100000,
+                    "M": "BLU"
+                },
+                "12": {
+                    "A": 102,
+                    "D": 20903054,
+                    "E": "Pen Light \/ Lampu Senter",
+                    "F": "Ya",
+                    "G": 2,
+                    "H": "-unknown-",
+                    "I": "-unknown-",
+                    "J": 2018,
+                    "K": "Baik",
+                    "L": 50000,
+                    "M": "BLU"
+                },
+                "13": {
+                    "A": 102,
+                    "D": 11501050,
+                    "E": "X-Ray Film Viewer",
+                    "F": "Ya",
+                    "G": "42000000-AKS-000407212",
+                    "H": "POLY",
+                    "I": "POLY - 069 D90W",
+                    "J": 2018,
+                    "K": "Baik",
+                    "L": 5000000,
+                    "M": "BLU",
+                    "N": "PT.POLY JAYA MEDICAL",
+                    "P": "BAIK"
+                },
+                "14": {
+                    "A": 102,
+                    "D": 10901018,
+                    "E": "Tensimeter Digital",
+                    "F": "Ya",
+                    "G": "42000000-AKS-000113741",
+                    "H": "Omron",
+                    "I": "HBP-1100",
+                    "J": 2018,
+                    "K": "Baik",
+                    "L": 2145000,
+                    "M": "BLU",
+                    "N": "PT. OMRON HEALTHCARE INDONESIA",
+                    "P": "BAIK"
+                },
+                "15": {
+                    "A": 102,
+                    "D": 20901011,
+                    "E": "Termometer digital",
+                    "F": "Ya",
+                    "G": "02154000KDH",
+                    "H": "UNKNOWN",
+                    "I": "UNKNOWN",
+                    "J": 2018,
+                    "K": "Baik",
+                    "L": 100000,
+                    "M": "BLU"
+                }
+            },
+            "column_profile": {
+                "A": {
+                    "populated": 1432
+                },
+                "F": {
+                    "populated": 805
+                },
+                "B": {
+                    "populated": 6
+                },
+                "G": {
+                    "populated": 804
+                },
+                "H": {
+                    "populated": 804
+                },
+                "I": {
+                    "populated": 804
+                },
+                "J": {
+                    "populated": 603
+                },
+                "K": {
+                    "populated": 804
+                },
+                "L": {
+                    "populated": 804
+                },
+                "M": {
+                    "populated": 603
+                },
+                "N": {
+                    "populated": 242
+                },
+                "O": {
+                    "populated": 11
+                },
+                "P": {
+                    "populated": 223
+                },
+                "C": {
+                    "populated": 18
+                },
+                "D": {
+                    "populated": 1406
+                },
+                "E": {
+                    "populated": 1313
+                }
+            },
+            "data_profile": {
+                "data_rows": 1313,
+                "category": {
+                    "(not provided)": 1313
+                },
+                "confidence": {
+                    "(not provided)": 1313
+                },
+                "condition": {
+                    "Baik": 602,
+                    "(not provided)": 510,
+                    "Rusak": 201
+                },
+                "funding": {
+                    "BLU": 523,
+                    "APBN": 22,
+                    "8": 51,
+                    "(not provided)": 711,
+                    "KSO\/Pinjaman": 3,
+                    "JKN": 1,
+                    "Hibah\/Pemberian": 2
+                },
+                "available": {
+                    "Ya": 602,
+                    "(not provided)": 510,
+                    "Tidak": 201
+                },
+                "year": {
+                    "2015": 133,
+                    "2018": 57,
+                    "2010": 18,
+                    "2017": 25,
+                    "2014": 76,
+                    "2012": 54,
+                    "2013": 76,
+                    "2016": 67,
+                    "2006": 2,
+                    "(not provided)": 711,
+                    "2019": 24,
+                    "2021": 4,
+                    "2020": 12,
+                    "2025": 21,
+                    "2011": 17,
+                    "20120": 1,
+                    "2022": 5,
+                    "2024": 3,
+                    "2009": 1,
+                    "1996": 1,
+                    "2000": 3,
+                    "2026": 1,
+                    "2008": 1
+                },
+                "missing_serial": 711,
+                "missing_brand": 1044,
+                "missing_model": 1225,
+                "missing_price": 711,
+                "missing_location": 0,
+                "repeated_exact_identity": 1
+            }
+        },
+        "Petunjuk": {
+            "rows": 15,
+            "columns": "B",
+            "nonempty_rows": 11,
+            "sample": {
+                "1": {
+                    "B": "Peraturan"
+                },
+                "2": {
+                    "A": 1,
+                    "B": "Jangan menghapus\/mengubah tanda ::end::"
+                },
+                "3": {
+                    "A": 2,
+                    "B": "Jangan Mengubah format file import"
+                },
+                "4": {
+                    "A": 3,
+                    "B": "Mengubah Template kode RS dan kode form yang berwarna merah"
+                },
+                "6": {
+                    "A": 4,
+                    "B": "Kode RS adalah kode Rumah sakit\/puskesmas yang dituju"
+                },
+                "7": {
+                    "A": 5,
+                    "B": "Kode Form adalah kode jenis data uang akan diimport"
+                },
+                "9": {
+                    "A": 6,
+                    "B": "kolom mark adalah penanda kode yang digunakan program sebagai penduan import"
+                },
+                "10": {
+                    "A": 7,
+                    "B": "kode pada mark adalah kode data sarana\/prasarana"
+                },
+                "11": {
+                    "A": 8,
+                    "B": "kode alat adalah kode alat dari daftar alat"
+                },
+                "13": {
+                    "A": 9,
+                    "B": "untuk penambahan data baru jika baris tidak mencukupi atau baris baru, sisipkan data menurut pola yang ada,  gunakan pendkodean pada file master daftar alat, daftar sarana dan daftara prasarana"
+                },
+                "15": {
+                    "A": 10,
+                    "B": "Data alat diterima jika kolom no seri terisi dan kolom \"ada\" terisi"
+                }
+            },
+            "column_profile": {
+                "B": {
+                    "populated": 11
+                },
+                "A": {
+                    "populated": 10
+                }
+            }
+        },
+        "Tatacara pengisian": {
+            "rows": 10,
+            "columns": "C",
+            "nonempty_rows": 9,
+            "sample": {
+                "2": {
+                    "B": "Merk dan Type",
+                    "C": "Kolom ini diisi sesuai dengan data teknis yang tersedia"
+                },
+                "3": {
+                    "B": "Tahun pengadaan",
+                    "C": "Disi dengan tahun pengadaan, tahun terkecil adalah 1970"
+                },
+                "4": {
+                    "B": "Tahun operasional",
+                    "C": " jika tidak diketahui maka disidengan tahun pengadaan, tahun terkecil adalah 1970"
+                },
+                "5": {
+                    "B": "Berfungsi",
+                    "C": "isikan dengan 'Baik', 'tdk beroperasi', atau 'tdk berfungsi'"
+                },
+                "6": {
+                    "B": "Harga",
+                    "C": "Cukup dengan nominal berupa angka. Tanap amenggunakan satuan, tanpa tanda koma atau pun titik "
+                },
+                "7": {
+                    "C": "dan tanpa spasi"
+                },
+                "8": {
+                    "B": "Pendanaan",
+                    "C": "sistem hanya mengenai data pendaanaan sebagai berikut"
+                },
+                "9": {
+                    "C": "APBN, APBD, Hibah (Hibah\/Pemberian),  kso (untuk KSO\/Pinjaman ), BLU, dan JKLN"
+                },
+                "10": {
+                    "C": "selaind ata tersebut tidak akan dikenali"
+                }
+            },
+            "column_profile": {
+                "B": {
+                    "populated": 6
+                },
+                "C": {
+                    "populated": 9
+                }
+            }
+        }
+    },
+    "Prasarana_RSUVE_Ketersediaan_Ada.xlsx": {
+        "Prasarana Ada": {
+            "rows": 28,
+            "columns": "G",
+            "nonempty_rows": 27,
+            "sample": {
+                "1": {
+                    "A": "DAFTAR PRASARANA RSU VINA ESTETICA YANG TERTERA \"ADA\""
+                },
+                "3": {
+                    "A": "No.",
+                    "B": "Kategori",
+                    "C": "Subkategori",
+                    "D": "Prasarana \/ Parameter",
+                    "E": "Ketersediaan",
+                    "F": "Jumlah \/ Kapasitas",
+                    "G": "Keterangan"
+                },
+                "4": {
+                    "A": 1,
+                    "B": "Sistem Telekomunikasi",
+                    "C": "Jaringan Internet",
+                    "D": "Jumlah Saluran Jaringan Internet (Unit)",
+                    "E": "Ada",
+                    "F": "3 Unit",
+                    "G": "Berfungsi"
+                },
+                "5": {
+                    "A": 2,
+                    "B": "Sistem Telekomunikasi",
+                    "C": "Jaringan Internet",
+                    "D": "Jumlah Saluran Jaringan Internet yang Berfungsi (Unit)",
+                    "E": "Ada",
+                    "F": "3 Unit",
+                    "G": "Berfungsi"
+                },
+                "6": {
+                    "A": 3,
+                    "B": "Sistem Telekomunikasi",
+                    "C": "Private Automatic Branch Xchange (PABX)",
+                    "D": "Jumlah Unit PABX yang Dimiliki (Unit)",
+                    "E": "Ada",
+                    "F": "3 Unit",
+                    "G": "Berfungsi"
+                },
+                "7": {
+                    "A": 4,
+                    "B": "Sistem Telekomunikasi",
+                    "C": "Private Automatic Branch Xchange (PABX)",
+                    "D": "Total Kapasitas (Saluran)",
+                    "E": "Ada",
+                    "F": "45 Saluran",
+                    "G": "Berfungsi"
+                },
+                "8": {
+                    "A": 5,
+                    "B": "Sistem Telekomunikasi",
+                    "C": "Sambungan Saluran Telepon (SST)",
+                    "D": "Jumlah SST yang Berfungsi (Unit)",
+                    "E": "Ada",
+                    "F": "3 Unit",
+                    "G": "Berfungsi"
+                },
+                "9": {
+                    "A": 6,
+                    "B": "Ambulans",
+                    "C": "Ambulans Transport",
+                    "D": "Jumlah ambulance transport Kondisi Baik (Unit)",
+                    "E": "Ada",
+                    "F": "2 Unit",
+                    "G": "Berfungsi"
+                },
+                "10": {
+                    "A": 7,
+                    "B": "Sumber Listrik",
+                    "C": "Listrik PLN",
+                    "D": "Daya Listrik Terpasang\/Kapasitas (KVA)",
+                    "E": "Ada",
+                    "F": "500 KVA",
+                    "G": "Berfungsi"
+                },
+                "11": {
+                    "A": 8,
+                    "B": "Sumber Listrik",
+                    "C": "Genset",
+                    "D": "Total Kapasitas Genset yg Berfungsi (KVA)",
+                    "E": "Ada",
+                    "F": "340 KVA",
+                    "G": "Berfungsi"
+                },
+                "12": {
+                    "A": 9,
+                    "B": "Sumber Listrik",
+                    "C": "Genset",
+                    "D": "Jumlah genset yang berfungsi (Unit)",
+                    "E": "Ada",
+                    "F": "1 Unit",
+                    "G": "Berfungsi"
+                },
+                "13": {
+                    "A": 10,
+                    "B": "Sumber Listrik",
+                    "C": "UPS",
+                    "D": "Jumlah UPS yang berfungsi (Unit)",
+                    "E": "Ada",
+                    "F": "5 Unit",
+                    "G": "Berfungsi"
+                },
+                "14": {
+                    "A": 11,
+                    "B": "Sumber Listrik",
+                    "C": "UPS",
+                    "D": "Total Kapasitas UPS yg berfungsi (KVA)",
+                    "E": "Ada",
+                    "F": "240 KVA",
+                    "G": "Berfungsi"
+                },
+                "15": {
+                    "A": 12,
+                    "B": "Sumber Air",
+                    "C": "PDAM",
+                    "D": "Rata-rata Pemakaian PDAM per Hari (M3\/Hari)",
+                    "E": "Ada",
+                    "F": "6000 M3\/Hari",
+                    "G": "Berfungsi"
+                }
+            },
+            "column_profile": {
+                "A": {
+                    "populated": 27
+                },
+                "B": {
+                    "populated": 26
+                },
+                "C": {
+                    "populated": 26
+                },
+                "D": {
+                    "populated": 26
+                },
+                "E": {
+                    "populated": 26
+                },
+                "F": {
+                    "populated": 26
+                },
+                "G": {
+                    "populated": 26
+                }
+            }
+        }
+    },
+    "Klasifikasi_Alat_Medis_dan_Penunjang_Medis_RSUVE.xlsx": {
+        "Ringkasan": {
+            "rows": 12,
+            "columns": "F",
+            "nonempty_rows": 9,
+            "sample": {
+                "1": {
+                    "A": "RINGKASAN KLASIFIKASI ALAT – RSU VINA ESTETICA"
+                },
+                "3": {
+                    "A": "Indikator",
+                    "B": "Jumlah"
+                },
+                "4": {
+                    "A": "Total Baris Alat",
+                    "B": "=COUNTA('Klasifikasi Alat'!G2:G1314)"
+                },
+                "5": {
+                    "A": "Alat Medis",
+                    "B": "=COUNTIF('Klasifikasi Alat'!H2:H1314,\"Alat Medis\")"
+                },
+                "6": {
+                    "A": "Alat Penunjang Medis",
+                    "B": "=COUNTIF('Klasifikasi Alat'!H2:H1314,\"Alat Penunjang Medis\")"
+                },
+                "9": {
+                    "A": "Kelompok Utama",
+                    "B": "Alat Medis",
+                    "C": "Alat Penunjang Medis"
+                },
+                "10": {
+                    "A": "Pelayanan Medik dan Keperawatan",
+                    "B": "=COUNTIFS('Klasifikasi Alat'!C2:C1314,A10,'Klasifikasi Alat'!H2:H1314,\"Alat Medis\")",
+                    "C": "=COUNTIFS('Klasifikasi Alat'!C2:C1314,A10,'Klasifikasi Alat'!H2:H1314,\"Alat Penunjang Medis\")"
+                },
+                "11": {
+                    "A": "Penunjang Medik RS",
+                    "B": "=COUNTIFS('Klasifikasi Alat'!C2:C1314,A11,'Klasifikasi Alat'!H2:H1314,\"Alat Medis\")",
+                    "C": "=COUNTIFS('Klasifikasi Alat'!C2:C1314,A11,'Klasifikasi Alat'!H2:H1314,\"Alat Penunjang Medis\")"
+                },
+                "12": {
+                    "A": "Penunjang Non Medik RS",
+                    "B": "=COUNTIFS('Klasifikasi Alat'!C2:C1314,A12,'Klasifikasi Alat'!H2:H1314,\"Alat Medis\")",
+                    "C": "=COUNTIFS('Klasifikasi Alat'!C2:C1314,A12,'Klasifikasi Alat'!H2:H1314,\"Alat Penunjang Medis\")"
+                }
+            },
+            "column_profile": {
+                "A": {
+                    "populated": 9
+                },
+                "B": {
+                    "populated": 8,
+                    "formulas": 6
+                },
+                "C": {
+                    "populated": 4,
+                    "formulas": 3
+                }
+            }
+        },
+        "Klasifikasi Alat": {
+            "rows": 1314,
+            "columns": "U",
+            "nonempty_rows": 1314,
+            "sample": {
+                "1": {
+                    "A": "No",
+                    "B": "Baris Asal",
+                    "C": "Kelompok Utama",
+                    "D": "Pelayanan \/ Instalasi",
+                    "E": "Ruangan",
+                    "F": "Kode Alat",
+                    "G": "Nama Alat",
+                    "H": "Kategori",
+                    "I": "Keyakinan",
+                    "J": "Dasar Klasifikasi",
+                    "K": "Ada",
+                    "L": "No. Seri",
+                    "M": "Merk",
+                    "N": "Tipe",
+                    "O": "Tahun Pengadaan",
+                    "P": "Kondisi",
+                    "Q": "Harga",
+                    "R": "Pendanaan",
+                    "S": "Distributor",
+                    "T": "AKL\/AKD",
+                    "U": "Keterangan Asal"
+                },
+                "2": {
+                    "A": 1,
+                    "B": 9,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik Sp. Penyakit Dalam",
+                    "F": "10903022",
+                    "G": "Examination Bed",
+                    "H": "Alat Penunjang Medis",
+                    "I": "Tinggi",
+                    "J": "Mendukung pelayanan melalui furniture medis, transportasi, penyimpanan, sterilisasi, penerangan, atau utilitas.",
+                    "K": "Ya",
+                    "L": "2",
+                    "M": "unregister",
+                    "N": "unregister",
+                    "O": 2015,
+                    "P": "Baik",
+                    "Q": 950000,
+                    "R": "BLU"
+                },
+                "3": {
+                    "A": 2,
+                    "B": 10,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik Sp. Penyakit Dalam",
+                    "F": "20501033",
+                    "G": "Stetoskop Dewasa",
+                    "H": "Alat Medis",
+                    "I": "Tinggi",
+                    "J": "Digunakan langsung untuk pemeriksaan, diagnosis, monitoring, terapi, tindakan, atau perawatan pasien.",
+                    "K": "Ya",
+                    "L": "502190139",
+                    "M": "RIESTER",
+                    "N": "124",
+                    "O": 2018,
+                    "P": "Baik",
+                    "Q": 900000,
+                    "R": "APBN",
+                    "U": "BAIK"
+                },
+                "4": {
+                    "A": 3,
+                    "B": 11,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik Sp. Penyakit Dalam",
+                    "F": "10901006",
+                    "G": "Timbangan dewasa;",
+                    "H": "Alat Medis",
+                    "I": "Tinggi",
+                    "J": "Digunakan langsung untuk pemeriksaan, diagnosis, monitoring, terapi, tindakan, atau perawatan pasien.",
+                    "K": "Ya",
+                    "L": "1",
+                    "M": "SMIC",
+                    "N": "-unknown-",
+                    "O": 2018,
+                    "P": "Baik",
+                    "Q": 1100000,
+                    "R": "BLU"
+                },
+                "5": {
+                    "A": 4,
+                    "B": 12,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik Sp. Penyakit Dalam",
+                    "F": "20903054",
+                    "G": "Pen Light \/ Lampu Senter",
+                    "H": "Alat Medis",
+                    "I": "Tinggi",
+                    "J": "Digunakan langsung untuk pemeriksaan, diagnosis, monitoring, terapi, tindakan, atau perawatan pasien.",
+                    "K": "Ya",
+                    "L": "2",
+                    "M": "-unknown-",
+                    "N": "-unknown-",
+                    "O": 2018,
+                    "P": "Baik",
+                    "Q": 50000,
+                    "R": "BLU"
+                },
+                "6": {
+                    "A": 5,
+                    "B": 13,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik Sp. Penyakit Dalam",
+                    "F": "11501050",
+                    "G": "X-Ray Film Viewer",
+                    "H": "Alat Penunjang Medis",
+                    "I": "Tinggi",
+                    "J": "Mendukung pelayanan melalui furniture medis, transportasi, penyimpanan, sterilisasi, penerangan, atau utilitas.",
+                    "K": "Ya",
+                    "L": "42000000-AKS-000407212",
+                    "M": "POLY",
+                    "N": "POLY - 069 D90W",
+                    "O": 2018,
+                    "P": "Baik",
+                    "Q": 5000000,
+                    "R": "BLU",
+                    "S": "PT.POLY JAYA MEDICAL",
+                    "U": "BAIK"
+                },
+                "7": {
+                    "A": 6,
+                    "B": 14,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik Sp. Penyakit Dalam",
+                    "F": "10901018",
+                    "G": "Tensimeter Digital",
+                    "H": "Alat Medis",
+                    "I": "Tinggi",
+                    "J": "Digunakan langsung untuk pemeriksaan, diagnosis, monitoring, terapi, tindakan, atau perawatan pasien.",
+                    "K": "Ya",
+                    "L": "42000000-AKS-000113741",
+                    "M": "Omron",
+                    "N": "HBP-1100",
+                    "O": 2018,
+                    "P": "Baik",
+                    "Q": 2145000,
+                    "R": "BLU",
+                    "S": "PT. OMRON HEALTHCARE INDONESIA",
+                    "U": "BAIK"
+                },
+                "8": {
+                    "A": 7,
+                    "B": 15,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik Sp. Penyakit Dalam",
+                    "F": "20901011",
+                    "G": "Termometer digital",
+                    "H": "Alat Medis",
+                    "I": "Tinggi",
+                    "J": "Digunakan langsung untuk pemeriksaan, diagnosis, monitoring, terapi, tindakan, atau perawatan pasien.",
+                    "K": "Ya",
+                    "L": "02154000KDH",
+                    "M": "UNKNOWN",
+                    "N": "UNKNOWN",
+                    "O": 2018,
+                    "P": "Baik",
+                    "Q": 100000,
+                    "R": "BLU"
+                },
+                "9": {
+                    "A": 8,
+                    "B": 17,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik Sp. Kesehatan Anak",
+                    "F": "20403044",
+                    "G": "Nebulizer",
+                    "H": "Alat Medis",
+                    "I": "Tinggi",
+                    "J": "Digunakan langsung untuk pemeriksaan, diagnosis, monitoring, terapi, tindakan, atau perawatan pasien.",
+                    "K": "Ya",
+                    "L": "2003",
+                    "M": "OMRON Compressor Nebulizer",
+                    "N": "-unknown-",
+                    "O": 2015,
+                    "P": "Baik",
+                    "Q": 600000,
+                    "R": "BLU"
+                },
+                "10": {
+                    "A": 9,
+                    "B": 18,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik Sp. Kesehatan Anak",
+                    "F": "10903022",
+                    "G": "Examination Bed",
+                    "H": "Alat Penunjang Medis",
+                    "I": "Tinggi",
+                    "J": "Mendukung pelayanan melalui furniture medis, transportasi, penyimpanan, sterilisasi, penerangan, atau utilitas.",
+                    "K": "Ya",
+                    "L": "2004",
+                    "M": "-unknown-",
+                    "N": "-unknown-",
+                    "O": 2010,
+                    "P": "Baik",
+                    "Q": 2000000,
+                    "R": "BLU"
+                },
+                "11": {
+                    "A": 10,
+                    "B": 19,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik Sp. Kesehatan Anak",
+                    "F": "20903054",
+                    "G": "Pen Light \/ Lampu Senter",
+                    "H": "Alat Medis",
+                    "I": "Tinggi",
+                    "J": "Digunakan langsung untuk pemeriksaan, diagnosis, monitoring, terapi, tindakan, atau perawatan pasien.",
+                    "K": "Ya",
+                    "L": "2005",
+                    "M": "ABC",
+                    "N": "-unknown-",
+                    "O": 2018,
+                    "P": "Baik",
+                    "Q": 50000,
+                    "R": "BLU"
+                },
+                "12": {
+                    "A": 11,
+                    "B": 20,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik Sp. Kesehatan Anak",
+                    "F": "20902048",
+                    "G": "Stetoskop bayi",
+                    "H": "Alat Medis",
+                    "I": "Tinggi",
+                    "J": "Digunakan langsung untuk pemeriksaan, diagnosis, monitoring, terapi, tindakan, atau perawatan pasien.",
+                    "K": "Ya",
+                    "L": "2007",
+                    "M": "3M LITMANN Classic II S.E. Stethoscope",
+                    "N": "-unknown-",
+                    "O": 2015,
+                    "P": "Baik",
+                    "Q": 1300000,
+                    "R": "BLU"
+                },
+                "13": {
+                    "A": 12,
+                    "B": 21,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik Sp. Kesehatan Anak",
+                    "F": "10901019",
+                    "G": "Timbangan anak",
+                    "H": "Alat Medis",
+                    "I": "Tinggi",
+                    "J": "Digunakan langsung untuk pemeriksaan, diagnosis, monitoring, terapi, tindakan, atau perawatan pasien.",
+                    "K": "Ya",
+                    "L": "2009",
+                    "M": "-unknown-",
+                    "N": "-unknown-",
+                    "O": 2015,
+                    "P": "Baik",
+                    "Q": 100000,
+                    "R": "BLU"
+                },
+                "14": {
+                    "A": 13,
+                    "B": 22,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik Sp. Kesehatan Anak",
+                    "F": "10901020",
+                    "G": "Timbangan bayi",
+                    "H": "Alat Medis",
+                    "I": "Tinggi",
+                    "J": "Digunakan langsung untuk pemeriksaan, diagnosis, monitoring, terapi, tindakan, atau perawatan pasien.",
+                    "K": "Ya",
+                    "L": "2010",
+                    "M": "gesunde",
+                    "N": "-unknown-",
+                    "O": 2015,
+                    "P": "Baik",
+                    "Q": 300000,
+                    "R": "BLU"
+                }
+            },
+            "column_profile": {
+                "A": {
+                    "populated": 1314
+                },
+                "B": {
+                    "populated": 1314
+                },
+                "C": {
+                    "populated": 1314
+                },
+                "D": {
+                    "populated": 1314
+                },
+                "E": {
+                    "populated": 1314
+                },
+                "F": {
+                    "populated": 1314
+                },
+                "G": {
+                    "populated": 1314
+                },
+                "H": {
+                    "populated": 1314
+                },
+                "I": {
+                    "populated": 1314
+                },
+                "J": {
+                    "populated": 1314
+                },
+                "K": {
+                    "populated": 804
+                },
+                "L": {
+                    "populated": 804
+                },
+                "M": {
+                    "populated": 804
+                },
+                "N": {
+                    "populated": 804
+                },
+                "O": {
+                    "populated": 603
+                },
+                "P": {
+                    "populated": 804
+                },
+                "Q": {
+                    "populated": 804
+                },
+                "R": {
+                    "populated": 603
+                },
+                "S": {
+                    "populated": 242
+                },
+                "T": {
+                    "populated": 11
+                },
+                "U": {
+                    "populated": 223
+                }
+            },
+            "data_profile": {
+                "data_rows": 1313,
+                "category": {
+                    "Alat Penunjang Medis": 287,
+                    "Alat Medis": 1026
+                },
+                "confidence": {
+                    "Tinggi": 1143,
+                    "Sedang": 170
+                },
+                "condition": {
+                    "Baik": 602,
+                    "": 510,
+                    "Rusak": 201
+                },
+                "funding": {
+                    "BLU": 523,
+                    "APBN": 22,
+                    "8.0": 51,
+                    "": 711,
+                    "KSO\/Pinjaman": 3,
+                    "JKN": 1,
+                    "Hibah\/Pemberian": 2
+                },
+                "available": {
+                    "Ya": 602,
+                    "": 510,
+                    "Tidak": 201
+                },
+                "year": {
+                    "2015": 133,
+                    "2018": 57,
+                    "2010": 18,
+                    "2017": 25,
+                    "2014": 76,
+                    "2012": 54,
+                    "2013": 76,
+                    "2016": 67,
+                    "2006": 2,
+                    "": 711,
+                    "2019": 24,
+                    "2021": 4,
+                    "2020": 12,
+                    "2025": 21,
+                    "2011": 17,
+                    "20120": 1,
+                    "2022": 5,
+                    "2024": 3,
+                    "2009": 1,
+                    "1996": 1,
+                    "2000": 3,
+                    "2026": 1,
+                    "2008": 1
+                },
+                "missing_serial": 711,
+                "missing_brand": 1044,
+                "missing_model": 1225,
+                "missing_price": 711,
+                "missing_location": 0,
+                "repeated_exact_identity": 1
+            }
+        },
+        "Perlu Verifikasi": {
+            "rows": 171,
+            "columns": "I",
+            "nonempty_rows": 171,
+            "sample": {
+                "1": {
+                    "A": "No",
+                    "B": "Baris Asal",
+                    "C": "Kelompok Utama",
+                    "D": "Pelayanan \/ Instalasi",
+                    "E": "Ruangan",
+                    "F": "Kode Alat",
+                    "G": "Nama Alat",
+                    "H": "Kategori",
+                    "I": "Dasar Klasifikasi"
+                },
+                "2": {
+                    "A": 14,
+                    "B": 23,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik Sp. Kesehatan Anak",
+                    "F": "10903013",
+                    "G": "Tongue depressor",
+                    "H": "Alat Medis",
+                    "I": "Tercantum sebagai alat pada area pelayanan klinis; diklasifikasikan sebagai alat medis secara operasional."
+                },
+                "3": {
+                    "A": 29,
+                    "B": 39,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik Sp. Bedah",
+                    "F": "11303015",
+                    "G": "Alat pembuka gips",
+                    "H": "Alat Medis",
+                    "I": "Tercantum sebagai alat pada area pelayanan klinis; diklasifikasikan sebagai alat medis secara operasional."
+                },
+                "4": {
+                    "A": 32,
+                    "B": 42,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik Sp. Bedah",
+                    "F": "21401005",
+                    "G": "Reflex hammer\/Palu pengukur reflex",
+                    "H": "Alat Medis",
+                    "I": "Tercantum sebagai alat pada area pelayanan klinis; diklasifikasikan sebagai alat medis secara operasional."
+                },
+                "5": {
+                    "A": 42,
+                    "B": 53,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik Sp. Kebidanan dan Kandungan",
+                    "F": "21101012",
+                    "G": "Colposcope",
+                    "H": "Alat Medis",
+                    "I": "Tercantum sebagai alat pada area pelayanan klinis; diklasifikasikan sebagai alat medis secara operasional."
+                },
+                "6": {
+                    "A": 50,
+                    "B": 61,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik Sp. Kebidanan dan Kandungan",
+                    "F": "21101027",
+                    "G": "Sonde Uterus (Uterine Sound)",
+                    "H": "Alat Medis",
+                    "I": "Tercantum sebagai alat pada area pelayanan klinis; diklasifikasikan sebagai alat medis secara operasional."
+                },
+                "7": {
+                    "A": 73,
+                    "B": 85,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik Sp. THT dan THT",
+                    "F": "20701030",
+                    "G": "Diafanoskop",
+                    "H": "Alat Medis",
+                    "I": "Tercantum sebagai alat pada area pelayanan klinis; diklasifikasikan sebagai alat medis secara operasional."
+                },
+                "8": {
+                    "A": 75,
+                    "B": 87,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik Sp. THT dan THT",
+                    "F": "11001018",
+                    "G": "Tuning fork",
+                    "H": "Alat Medis",
+                    "I": "Tercantum sebagai alat pada area pelayanan klinis; diklasifikasikan sebagai alat medis secara operasional."
+                },
+                "9": {
+                    "A": 76,
+                    "B": 88,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik Sp. THT dan THT",
+                    "F": "20701022",
+                    "G": "Hak serumen",
+                    "H": "Alat Medis",
+                    "I": "Tercantum sebagai alat pada area pelayanan klinis; diklasifikasikan sebagai alat medis secara operasional."
+                },
+                "10": {
+                    "A": 79,
+                    "B": 91,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik Sp. THT dan THT",
+                    "F": "20701023",
+                    "G": "Luc serumen",
+                    "H": "Alat Medis",
+                    "I": "Tercantum sebagai alat pada area pelayanan klinis; diklasifikasikan sebagai alat medis secara operasional."
+                },
+                "11": {
+                    "A": 85,
+                    "B": 97,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik Sp. THT dan THT",
+                    "F": "20701031",
+                    "G": "Rhinuscope",
+                    "H": "Alat Medis",
+                    "I": "Tercantum sebagai alat pada area pelayanan klinis; diklasifikasikan sebagai alat medis secara operasional."
+                },
+                "12": {
+                    "A": 94,
+                    "B": 106,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik Sp. THT dan THT",
+                    "F": "10903013",
+                    "G": "Tongue depressor",
+                    "H": "Alat Medis",
+                    "I": "Tercantum sebagai alat pada area pelayanan klinis; diklasifikasikan sebagai alat medis secara operasional."
+                },
+                "13": {
+                    "A": 104,
+                    "B": 117,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik dr. Gigi umum, Gigi Spesialis dan Gigi Sub Spesialis",
+                    "F": "10605046",
+                    "G": "Brush polisher",
+                    "H": "Alat Medis",
+                    "I": "Tercantum sebagai alat pada area pelayanan klinis; diklasifikasikan sebagai alat medis secara operasional."
+                },
+                "14": {
+                    "A": 105,
+                    "B": 118,
+                    "C": "Pelayanan Medik dan Keperawatan",
+                    "D": "Pelayanan Rawat Jalan",
+                    "E": "Ruangan Klinik dr. Gigi umum, Gigi Spesialis dan Gigi Sub Spesialis",
+                    "F": "10605031",
+                    "G": "Bite fork",
+                    "H": "Alat Medis",
+                    "I": "Tercantum sebagai alat pada area pelayanan klinis; diklasifikasikan sebagai alat medis secara operasional."
+                }
+            },
+            "column_profile": {
+                "A": {
+                    "populated": 171
+                },
+                "B": {
+                    "populated": 171
+                },
+                "C": {
+                    "populated": 171
+                },
+                "D": {
+                    "populated": 171
+                },
+                "E": {
+                    "populated": 171
+                },
+                "F": {
+                    "populated": 171
+                },
+                "G": {
+                    "populated": 171
+                },
+                "H": {
+                    "populated": 171
+                },
+                "I": {
+                    "populated": 171
+                }
+            }
+        },
+        "Panduan": {
+            "rows": 6,
+            "columns": "B",
+            "nonempty_rows": 6,
+            "sample": {
+                "1": {
+                    "A": "PANDUAN KLASIFIKASI"
+                },
+                "2": {
+                    "A": "Kategori",
+                    "B": "Definisi operasional"
+                },
+                "3": {
+                    "A": "Alat Medis",
+                    "B": "Peralatan yang digunakan langsung untuk pemeriksaan, diagnosis, monitoring, terapi, tindakan, atau perawatan pasien."
+                },
+                "4": {
+                    "A": "Alat Penunjang Medis",
+                    "B": "Peralatan yang mendukung pelayanan medis, seperti furniture medis, transportasi pasien, penyimpanan, sterilisasi, penerangan, utilitas, atau sarana pendukung."
+                },
+                "5": {
+                    "A": "Catatan penting",
+                    "B": "Klasifikasi ini dibuat secara operasional berdasarkan nama\/fungsi alat pada file sumber. Untuk kebutuhan legal, izin edar, ASPAK, kalibrasi, atau pengadaan, tetap perlu verifikasi terhadap klasifikasi resmi Kementerian Kesehatan dan fungsi aktual alat."
+                },
+                "6": {
+                    "A": "Sumber",
+                    "B": "Format Import Alkes (2).xls – RS Umum Vina Estetica"
+                }
+            },
+            "column_profile": {
+                "A": {
+                    "populated": 6
+                },
+                "B": {
+                    "populated": 5
+                }
+            }
+        }
+    },
+    "_cross_source_verification": {
+        "classification_rows_matching_alkes_original_row_code_and_serial": 1313,
+        "classification_rows": 1313
+    }
+}

@@ -1,0 +1,1 @@
+<div class="actions" data-pdf-exclude style="margin-bottom:16px"><a class="btn" href="{{ route('accounting.workspace',['as_of'=>$position['as_of']??now('Asia/Jakarta')->toDateString()]) }}">Ruang Kerja Accounting</a></div>

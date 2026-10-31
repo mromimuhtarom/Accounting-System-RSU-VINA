@@ -30,6 +30,7 @@
 @if(!$role)
 <div class="card"><h3 class="section-title">Role Accounting belum terhubung</h3><p class="muted">Hubungkan akun dengan role aplikasi ACCOUNTING melalui Manajemen Akun.</p></div>
 @endif
+@include('dashboard-financial-position')
 @if($role==='KASIR')
 <div class="stats-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
  <div class="card stat-card"><div class="stat-icon green">＋</div><div class="stat-label">Transaksi Hari Ini</div><div class="stat">{{ number_format($stats['today_count']) }}</div><div class="stat-note">Transaksi aktif oleh Anda</div></div>
@@ -38,17 +39,12 @@
 <div class="card"><h3 class="section-title">Input Penerimaan</h3><a class="btn primary" href="{{ route('cashier.receipts.create') }}">＋ Input Penerimaan</a></div>
 @endif
 @if(in_array($role,['ACCOUNTING','ADMIN_ACCOUNTING','ATASAN','FINANCE','KEPALA_KEUANGAN','DIREKTUR','OWNER']))
-<!-- <div class="rsv-note">Ringkasan <strong>{{ $year }}</strong> dihitung dari transaksi berstatus <strong>ACTIVE</strong>. Total Penerimaan Tercatat mencakup semua penerimaan aktif termasuk transaksi historis yang metodenya kosong. Jumlah ini <strong>bukan bukti seluruh uang telah cair</strong>. Penerimaan terindikasi dibayar hanya mengambil metode CASH, TRANSFER, QRIS, dan CARD. Transaksi metode GUARANTOR dan metode kosong <strong>tidak otomatis dianggap uang cair</strong>. Data pembayaran belum direkonsiliasi dengan mutasi bank.</div> -->
 <div class="rsv-summary-area"><div class="stats-grid rsv-summary-grid">
  <div class="card stat-card"><div class="stat-icon green">↙</div><div class="stat-label">Total Penerimaan Tercatat</div><div class="stat"><span class="rsv-stat-currency">Rp</span><span class="rsv-stat-value">{{ number_format($stats['total_records'],0,',','.') }}</span></div><div class="rsv-stat-note">Seluruh penerimaan ACTIVE pada {{ $year }}</div></div>
  <div class="card stat-card"><div class="stat-icon red">↗</div><div class="stat-label">Total Pengeluaran</div><div class="stat"><span class="rsv-stat-currency">Rp</span><span class="rsv-stat-value">{{ number_format($stats['expense'],0,',','.') }}</span></div><div class="rsv-stat-note">Pengeluaran aktif tahun {{ $year }}</div></div>
  <div class="card stat-card"><div class="stat-icon blue">↗</div><div class="stat-label">Selisih Pencatatan – Pengeluaran</div><div class="stat"><span class="rsv-stat-currency">Rp</span><span class="rsv-stat-value">{{ number_format($stats['total_records']-$stats['expense'],0,',','.') }}</span></div><div class="rsv-stat-note">Bukan saldo kas dan bukan laba rugi</div></div>
  <div class="card stat-card"><div class="stat-icon purple">▤</div><div class="stat-label">Jumlah Transaksi Penerimaan</div><div class="stat">{{ number_format($stats['total_record_count']) }}</div><div class="rsv-stat-note">Seluruh transaksi penerimaan aktif</div></div>
 </div></div>
-<!-- <div class="card" style="margin-bottom:18px">
- <h3 class="section-title">Pemeriksaan Data yang Perlu Direkonsiliasi</h3>
- <div class="rsv-note rsv-warning" style="margin-bottom:0">Terindikasi pembayaran (CASH/TRANSFER/QRIS/CARD): <strong>Rp {{ number_format($stats['income'],0,',','.') }}</strong> ({{ number_format($stats['transactions']) }} transaksi). Metode GUARANTOR: <strong>Rp {{ number_format($stats['tagihan'],0,',','.') }}</strong> ({{ number_format($stats['tagihan_count']) }} transaksi). Metode pembayaran kosong: <strong>Rp {{ number_format($stats['unknown_method'],0,',','.') }}</strong> ({{ number_format($stats['unknown_method_count']) }} transaksi). Penjamin belum dipilih pada penerimaan pembayaran: <strong>Rp {{ number_format($stats['unclassified'],0,',','.') }}</strong>. Nilai ini perlu dicek sebelum dijadikan dasar pelaporan kas atau komposisi penjamin final.</div>
-</div> -->
 <div class="grid" style="grid-template-columns:minmax(0,2fr) minmax(280px,1fr)">
  <div class="card">
   <h3 class="section-title">Komposisi Penerimaan Berdasarkan Penjamin</h3>
@@ -90,4 +86,5 @@
 @if(in_array($role,['KASIR','ACCOUNTING','ADMIN_ACCOUNTING','KEPALA_KEUANGAN','ATASAN','FINANCE','DIREKTUR','OWNER']))
 @include('reports.partials.referral-summary')
 @endif
+@include('reports.partials.asset-charts')
 @endsection

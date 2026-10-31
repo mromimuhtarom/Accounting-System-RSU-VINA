@@ -2,15 +2,22 @@
 
 namespace Tests\Feature;
 
+use App\Models\Asset;
+use App\Models\AssetCapitalization;
 use App\Models\Expense;
+use App\Models\JournalEntry;
 use App\Models\Receipt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class ReportPdfTest extends ExpenseAccessTest
 {
     private function prepareReport(): void
     {
         (require database_path('migrations/2026_08_18_000008_create_financial_groups_table.php'))->up();
+        foreach (['2026_10_29_000001_create_fixed_asset_module.php', '2026_10_29_000002_index_asset_duplicate_candidates.php', '2026_10_29_000003_support_manual_asset_entry.php', '2026_10_29_000004_support_asset_editing_and_soft_deletes.php'] as $file) {
+            (require database_path('migrations/'.$file))->up();
+        }
         $role = DB::table('roles')->insertGetId([
             'application_id' => DB::table('applications')->value('id'),
             'code' => 'ACCOUNTING', 'name' => 'Accounting',
@@ -38,11 +45,12 @@ class ReportPdfTest extends ExpenseAccessTest
         $before = [Receipt::count(), Expense::count()];
         foreach (['monthly' => ['month' => 10, 'year' => 2026], 'yearly' => ['year' => 2026]] as $report => $period) {
             $response = $this->get(route('reports.'.$report, $period))->assertOk()
-                ->assertSee('Export PDF')->assertSee('report-pdf.js')
+                ->assertSee('Export PDF')->assertSee('report-pdf.js')->assertSee('Grafik Inventaris &amp; Aktiva', false)->assertSee('data-pdf-flatten')->assertSee('asset-reports.css')
                 ->assertSee($report === 'monthly' ? 'Laporan_Bulanan_2026-10.pdf' : 'Laporan_Tahunan_2026.pdf');
             $this->assertEquals(250000, $response->viewData('totalIncome'));
             $this->assertEquals(75000, $response->viewData('totalExpense'));
             $this->assertEquals(175000, $response->viewData('surplus'));
+            $this->assertSame($report === 'monthly' ? '2026-10' : '2026', $response->viewData('assetReport')['period']);
             if ($report === 'yearly') {
                 $this->assertEquals(250000, $response->viewData('incomeMonths')[10]);
                 $this->assertEquals(75000, $response->viewData('expenseMonths')[10]);
@@ -66,5 +74,19 @@ class ReportPdfTest extends ExpenseAccessTest
         auth()->logout();
         $this->get(route('reports.monthly'))->assertRedirect(route('login'));
         $this->get(route('reports.yearly'))->assertRedirect(route('login'));
+    }
+
+    public function test_dashboard_and_reports_include_document_inventory_without_capitalizing_it(): void
+    {
+        $this->prepareReport();
+        (require database_path('migrations/2026_10_24_120000_create_insurance_monthly_claims.php'))->up();
+        Asset::create(['name' => 'Monitor inventaris', 'inventory_type' => 'IT', 'category' => 'IT', 'location' => 'IGD', 'quantity' => 2, 'condition' => 'GOOD', 'source_price' => 9000000, 'fingerprint' => hash('sha256', 'chart-test'), 'qr_token' => (string) Str::uuid(), 'created_by' => auth()->id(), 'verified_by' => auth()->id(), 'verified_at' => now()]);
+        foreach (['dashboard' => ['tahun' => 2026], 'reports.monthly' => ['year' => 2026, 'month' => 10], 'reports.yearly' => ['year' => 2026]] as $route => $query) {
+            $response = $this->get(route($route, $query))->assertOk()->assertSee('Grafik Inventaris &amp; Aktiva', false);
+            $this->assertSame(1, $response->viewData('assetReport')['inventory_count']);
+            $this->assertEquals(0, $response->viewData('assetReport')['position']['cost']);
+        }
+        $this->assertSame(0, AssetCapitalization::count());
+        $this->assertSame(0, JournalEntry::count());
     }
 }

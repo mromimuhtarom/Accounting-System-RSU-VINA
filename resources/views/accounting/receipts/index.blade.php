@@ -49,13 +49,13 @@
 
 <div class="card">
     <div class="table-wrap">
-        <table>
+        <table class="transaction-table">
             <thead>
                 <tr>
                     <th>Tanggal</th>
                     <th>Kode</th>
                     <th>Keterangan</th>
-                    <th>N.Dokter</th>
+                    <th>Nama Dokter</th>
                     <th>HD</th>
                     <th>RS</th>
                     <th>Input Oleh</th>
@@ -89,7 +89,7 @@
                                     <form method="POST" action="{{ route('accounting.receipts.destroy', $r) }}" onsubmit="return confirm('Hapus pemasukan {{ $r->transaction_no }}?')">
                                         @csrf
                                         @method('DELETE')
-                                        <button class="btn danger" type="submit">Delete</button>
+                                        <button class="btn danger" type="submit">Hapus</button>
                                     </form>
                                 @endif
 

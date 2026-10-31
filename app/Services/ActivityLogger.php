@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Schema;
 class ActivityLogger
 {
     public const FORMS = [
+        'AssistantProfile'=>'Profil Asisten',
         'ReferralRecipient'=>'Penerima Referral', 'Receipt'=>'Penerimaan', 'Expense'=>'Pengeluaran', 'Patient'=>'Data Pasien',
         'ChartAccount'=>'Daftar Akun (COA)', 'ServiceUnit'=>'Unit Pelayanan', 'Guarantor'=>'Penjamin',
         'CashBankAccount'=>'Kas & Bank', 'ExpenseCategory'=>'Kategori Pengeluaran', 'FinancialGroup'=>'Group Laporan',
@@ -29,6 +30,7 @@ class ActivityLogger
         $form = self::FORMS[$type] ?? $type;
         if ($type === 'Expense' && $model->getAttribute('expense_type') === 'REFERRAL') $form = 'Pengeluaran Referal';
         $menu = match ($type) {
+            'AssistantProfile'=>'Pengaturan Asisten',
             'User' => 'Manajemen Akun',
             'ReferralRecipient', 'ChartAccount', 'ServiceUnit', 'Guarantor', 'CashBankAccount', 'ExpenseCategory', 'FinancialGroup' => 'Master Data',
             'JournalEntry', 'JournalLine' => 'Jurnal',
