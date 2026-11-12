@@ -9,14 +9,18 @@ use Illuminate\Validation\ValidationException;
 class BatchTransactionService
 {
     public const MAX_ROWS = 20;
+    public const SHARED_FIELDS = ['transaction_date', 'expense_date', 'chart_account_id', 'expense_category_id', 'guarantor_id', 'service_type', 'payment_method', 'cash_bank_account_id', 'referral_recipient_id'];
 
     public function store(Request $request, callable $validate, callable $store, string $returnRoute)
     {
+        $request->validate(['common'=>['sometimes','array']]);
+        $common = array_intersect_key($request->input('common', []), array_flip(self::SHARED_FIELDS));
         $request->validate(['rows'=>['required', 'array', 'min:1', 'max:'.self::MAX_ROWS], 'rows.*'=>['required', 'array'], 'rows.*.rows'=>['prohibited']]);
         $children = [];
         $errors = [];
         $files = new \ArrayObject();
         foreach ($request->input('rows') as $index => $row) {
+            $row = array_replace($row, $common);
             if (!ctype_digit((string) $index)) throw ValidationException::withMessages(['rows'=>'Nomor baris transaksi tidak valid.']);
             $child = Request::create($request->url(), 'POST', $row, [], $request->file('rows.'.$index, []));
             $child->setUserResolver(fn () => $request->user());

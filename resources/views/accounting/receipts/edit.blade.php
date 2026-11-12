@@ -21,8 +21,9 @@
                 </select>
             </div>
             <div class="field"><label for="receipt-amount">Jumlah penerimaan</label><input id="receipt-amount" type="number" min="0.01" step="0.01" name="amount" value="{{ old('amount', $receipt->amount) }}" required></div>
-            <div class="field" style="grid-column:1/-1"><label for="receipt-notes">Keterangan (termasuk nama pasien jika ada)</label><textarea id="receipt-notes" name="notes" maxlength="1000" required>{{ old('notes', $receipt->notes) }}</textarea></div>
-            <div class="field"><label for="receipt-doctor">Nama dokter</label><input id="receipt-doctor" name="doctor_name" value="{{ old('doctor_name', $receipt->doctor_name) }}"></div>
+            <div class="field" style="grid-column:1/-1">@include('transactions.description-picker', ['descriptionField'=>'notes'])
+<label for="receipt-notes">Keterangan (termasuk nama pasien jika ada)</label><textarea id="receipt-notes" name="notes" maxlength="1000" required>{{ old('notes', $receipt->notes) }}</textarea></div>
+            <div class="field"><label for="receipt-doctor">Nama dokter</label>@include('transactions.doctor-input', ['doctorInputValue'=>old('doctor_name',$receipt->doctor_name)])</div>
             <div class="field"><label for="receipt-hd">HD (opsional)</label><input id="receipt-hd" name="hd" value="{{ old('hd', $receipt->hd) }}"></div>
             <div class="field"><label for="receipt-rs">RS (opsional)</label><input id="receipt-rs" name="rs" value="{{ old('rs', $receipt->rs) }}"></div>
             <div class="field"><label for="receipt-status">Status</label><select id="receipt-status" name="status" required><option value="ACTIVE" @selected(old('status', $receipt->status) === 'ACTIVE')>Aktif</option><option value="CANCELLED" @selected(old('status', $receipt->status) === 'CANCELLED')>Dibatalkan</option></select></div>

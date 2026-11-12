@@ -55,7 +55,8 @@
                 @error('expense_category_id') <span class="expense-error">{{ $message }}</span> @enderror
             </div>
             <div class="field expense-wide">
-                <label for="expense-description">Keterangan pengeluaran</label>
+                @include('transactions.description-picker', ['descriptionField'=>'description'])
+<label for="expense-description">Keterangan pengeluaran</label>
                 <textarea id="expense-description" name="description" required aria-describedby="expense-description-help">{{ old('description', $expense?->description) }}</textarea>
                 <small class="expense-help" id="expense-description-help">Tuliskan keperluannya. Contoh: Pembelian alat tulis untuk ruang administrasi.</small>
                 @error('description') <span class="expense-error">{{ $message }}</span> @enderror

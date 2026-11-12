@@ -6,7 +6,8 @@
 <div class="field"><label>Nomor RM</label><input name="referral_medical_record_no" value="{{ old('referral_medical_record_no',$referral?->referral_medical_record_no ?: $referral?->patient?->medical_record_no) }}" maxlength="100" required></div>
 <div class="field"><label>Jenis Tindakan</label><select name="referral_procedure" required><option value="">Pilih tindakan</option>@foreach(['SC','RI'] as $procedure)<option value="{{ $procedure }}" @selected(old('referral_procedure',$referral?->referral_procedure)===$procedure)>{{ $procedure }}</option>@endforeach</select></div>
 <div class="field"><label>Nominal Referal</label><input type="number" min="1" step="0.01" name="amount" value="{{ old('amount',$referral?->amount) }}" required></div>
-<div class="field" style="grid-column:1/-1"><label>Keterangan</label><textarea name="description">{{ old('description',$referral?->description) }}</textarea></div>
+<div class="field" style="grid-column:1/-1">@include('transactions.description-picker', ['descriptionField'=>'description'])
+<label>Keterangan</label><textarea name="description">{{ old('description',$referral?->description) }}</textarea></div>
 <div style="grid-column:1/-1"><h3>Pembayaran dan Bukti Transaksi</h3></div>
 <div class="field"><label>Metode Pembayaran</label><select name="payment_method" required>@foreach(['CASH'=>'Cash','TRANSFER'=>'Transfer','QRIS'=>'QRIS','CARD'=>'Debit/Kartu'] as $k=>$v)<option value="{{ $k }}" @selected(old('payment_method',$referral?->payment_method)===$k)>{{ $v }}</option>@endforeach</select></div>
 <div class="field"><label>Kas / Bank</label><select name="cash_bank_account_id" required>@foreach($cashBanks as $x)<option value="{{ $x->id }}" @selected(old('cash_bank_account_id',$referral?->cash_bank_account_id)==$x->id)>{{ $x->name }}</option>@endforeach</select></div>

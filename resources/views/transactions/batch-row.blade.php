@@ -10,8 +10,13 @@
     $errorKey = 'rows.'.$rowIndex.'.'.$field;
 @endphp
 <div class="field" @if($type==='textarea')style="grid-column:1/-1"@endif>
+@if($type==='textarea' && in_array($field, ['notes','description']))
+@include('transactions.description-picker', ['descriptionField'=>$field, 'descriptionPickerId'=>$id.'-history'])
+@endif
 <label for="{{ $id }}">{{ $label }}{{ $required ? ' *' : '' }}</label>
-@if($type==='select')
+@if($field==='doctor_name')
+@include('transactions.doctor-input', ['doctorInputId'=>$id, 'doctorInputName'=>'rows['.$rowIndex.'][doctor_name]', 'doctorInputValue'=>$value])
+@elseif($type==='select')
 <select id="{{ $id }}" name="rows[{{ $rowIndex }}][{{ $field }}]" @required($required) @if($errors->has($errorKey))aria-invalid="true"@endif><option value="">Pilih {{ $label }}</option>@foreach($definition[3] as $option=>$text)<option value="{{ $option }}" @selected((string)$value===(string)$option)>{{ $text }}</option>@endforeach</select>
 @elseif($type==='textarea')
 <textarea id="{{ $id }}" name="rows[{{ $rowIndex }}][{{ $field }}]" @required($required)>{{ $value }}</textarea>

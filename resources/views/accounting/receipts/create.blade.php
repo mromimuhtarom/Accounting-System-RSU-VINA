@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="card actions"><a class="btn primary" href="{{ route('accounting.receipts.create', ['multiple'=>1]) }}">Input Banyak Sekaligus</a></div>
+<div class="card actions"><a class="btn primary" href="{{ route('accounting.receipts.create', ['multiple'=>1]) }}">Input Banyak Sekaligus</a><a class="btn" href="{{ route('accounting.receipts.create', ['multiple'=>1, 'grouped'=>1]) }}">Satu Kategori, Banyak Rincian</a></div>
 <div class="page-head">
     <div>
         <h1 class="page-title">Input Pemasukan</h1>
@@ -88,13 +88,14 @@
             </div>
 
             <div class="field" style="grid-column:1/-1">
-                <label>Keterangan</label>
+                @include('transactions.description-picker', ['descriptionField'=>'notes'])
+<label>Keterangan</label>
                 <textarea name="notes" required placeholder="Contoh: Poli IGD a/n ...">{{ old('notes') }}</textarea>
             </div>
 
             <div class="field">
-                <label>N.Dokter</label>
-                <input name="doctor_name" value="{{ old('doctor_name') }}" placeholder="Nama dokter, bila ada">
+                <label for="receipt-doctor">N.Dokter</label>
+                @include('transactions.doctor-input', ['doctorInputValue'=>old('doctor_name','')])
             </div>
 
             <div class="field">

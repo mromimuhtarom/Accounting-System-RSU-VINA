@@ -57,6 +57,7 @@
             search.className = 'ss-search';
             search.placeholder = select.dataset.searchPlaceholder || select.dataset.placeholder || 'Cari pilihan...';
             search.autocomplete = 'off';
+            if (select.dataset.maxLength) search.maxLength = Number(select.dataset.maxLength);
             search.setAttribute('aria-label', 'Cari pilihan');
 
             const searchIcon = document.createElement('span');
@@ -175,6 +176,12 @@
         renderOptions(query) {
             this.optionsEl.innerHTML = '';
             this.visibleOptions = this.getOptions(query);
+            const newValue = query.trim();
+            if (this.select.dataset.allowCreate === 'true' && newValue &&
+                newValue.length <= Number(this.select.dataset.maxLength || 150) &&
+                !Array.from(this.select.options).some(option => normalize(option.value) === normalize(newValue))) {
+                this.visibleOptions.push({value: newValue, text: `${this.select.dataset.createLabel || 'Tambah'}: ${newValue}`, create: true});
+            }
 
             if (!this.visibleOptions.length) {
                 const empty = document.createElement('div');
@@ -209,6 +216,16 @@
 
         choose(option) {
             if (option.disabled) return;
+            if (option.create) {
+                const group = this.select.dataset.optionGroup;
+                const targets = group ? Array.from(document.querySelectorAll('select[data-option-group]'))
+                    .filter(select => select.dataset.optionGroup === group) : [this.select];
+                targets.forEach(select => {
+                    if (!Array.from(select.options).some(existing => normalize(existing.value) === normalize(option.value))) {
+                        select.add(new Option(option.value, option.value));
+                    }
+                });
+            }
             this.select.value = option.value;
             this.select.dispatchEvent(new Event('input', { bubbles: true }));
             this.select.dispatchEvent(new Event('change', { bubbles: true }));
@@ -244,9 +261,9 @@
                 return;
             }
 
-            if (event.key === 'Enter' && this.highlightIndex >= 0) {
+            if (event.key === 'Enter') {
                 event.preventDefault();
-                const option = this.visibleOptions[this.highlightIndex];
+                const option = this.highlightIndex >= 0 ? this.visibleOptions[this.highlightIndex] : enabled[0]?.option;
                 if (option && !option.disabled) this.choose(option);
             }
         }

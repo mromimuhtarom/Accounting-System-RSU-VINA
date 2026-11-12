@@ -169,7 +169,7 @@
 @include('layouts.partials.system-assistant')
 <script src="{{ asset('public/js/system-assistant.js') }}?v=20261030-profile-1" defer></script>
 <script src="{{ asset('public/js/accounting-ui.js') }}?v=20261025-perf-1"></script>
-<script src="{{ asset('public/js/searchable-select.js') }}?v=20261025-1"></script>
+<script src="{{ asset('public/js/searchable-select.js') }}?v=20261112-doctor-create"></script>
 @stack('scripts')
 <script src="{{ asset('public/js/form-controls.js') }}?v=20261029-readable-money"></script>
 <script src="{{ asset('public/js/usability.js') }}?v=20261030-3" defer></script>

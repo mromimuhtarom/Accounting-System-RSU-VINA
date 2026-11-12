@@ -8,6 +8,46 @@ use Illuminate\Support\Facades\{DB, Event, Storage};
 
 class BatchTransactionTest extends ExpenseAccessTest
 {
+    public function test_grouped_entry_shares_category_and_payment_but_keeps_details_separate(): void
+    {
+        $common = $this->expenseRow();
+        unset($common['description'], $common['amount']);
+        $this->get(route('cashier.expenses.create', ['multiple'=>1, 'grouped'=>1]))->assertOk()
+            ->assertSee('name="common[expense_category_id]"', false)
+            ->assertDontSee('name="rows[0][expense_category_id]"', false)
+            ->assertSee('name="rows[0][amount]"', false);
+        $this->post(route('cashier.expenses.store'), ['common'=>$common, 'rows'=>[
+            ['description'=>'PT Rincian A', 'amount'=>100000],
+            ['description'=>'PT Rincian B', 'amount'=>200000],
+        ]])->assertSessionHasNoErrors();
+        $this->assertSame(2, Expense::count());
+        $this->assertSame(1, Expense::distinct()->count('expense_category_id'));
+        $this->assertEquals(300000, Expense::sum('amount'));
+        $receipt = $this->receiptRow();
+        unset($receipt['notes'], $receipt['amount']);
+        $this->post(route('cashier.receipts.store'), ['common'=>$receipt, 'rows'=>[
+            ['notes'=>'Rincian pemasukan A', 'amount'=>50000], ['notes'=>'Rincian pemasukan B', 'amount'=>75000],
+        ]])->assertSessionHasNoErrors();
+        $this->assertEquals(125000, Receipt::sum('amount'));
+        $this->get(route('accounting.referrals.create', ['multiple'=>1, 'grouped'=>1]))->assertOk()
+            ->assertSee('name="common[referral_recipient_id]"', false)
+            ->assertSee('name="rows[0][referral_patient_name]"', false);
+    }
+
+    public function test_fast_entry_history_is_available_for_both_modules_and_only_contains_own_transactions(): void
+    {
+        $this->post(route('cashier.receipts.store'), $this->receiptRow(['notes'=>'PT Riwayat Pemasukan']))->assertSessionHasNoErrors();
+        $this->post(route('cashier.expenses.store'), $this->expenseRow(['description'=>'PT Riwayat Pengeluaran']))->assertSessionHasNoErrors();
+        $other = User::factory()->create();
+        Receipt::first()->replicate()->fill(['transaction_no'=>'OTHER-HISTORY', 'cashier_id'=>$other->id, 'notes'=>'Keterangan pengguna lain'])->save();
+        Expense::first()->replicate()->fill(['expense_no'=>'OTHER-EXPENSE', 'created_by'=>$other->id, 'description'=>'Pengeluaran pengguna lain'])->save();
+        foreach (['receipts'=>'PT Riwayat Pemasukan', 'expenses'=>'PT Riwayat Pengeluaran'] as $module=>$description) {
+            $this->get(route('cashier.'.$module.'.create', ['multiple'=>1]))->assertOk()
+                ->assertSee('data-batch-paste', false)->assertSee('data-batch-total', false)
+                ->assertSee($description)->assertDontSee('Keterangan pengguna lain')->assertDontSee('Pengeluaran pengguna lain');
+        }
+    }
+
     private function expenseRow(array $overrides = []): array
     {
         return array_replace(['expense_date'=>'2026-10-28', 'expense_category_id'=>DB::table('expense_categories')->value('id'),

@@ -8,6 +8,14 @@ class AppServiceProvider extends ServiceProvider
     public function register():void {}
     public function boot():void
     {
+        \Illuminate\Support\Facades\View::composer([
+            'cashier.receipts.create', 'cashier.receipts.edit',
+            'accounting.receipts.create', 'accounting.receipts.edit', 'transactions.batch',
+        ], function ($view) {
+            $view->with('doctorNames', Receipt::query()->whereNotNull('doctor_name')
+                ->where('doctor_name', '<>', '')->select('doctor_name')->distinct()
+                ->orderBy('doctor_name')->pluck('doctor_name')->map(fn ($name) => trim($name))->filter()->unique()->values());
+        });
         foreach (array_keys(\App\Services\ActivityLogger::FORMS) as $model) {
             $class = 'App\\Models\\'.$model;
             $class::observe(\App\Observers\ActivityObserver::class);
