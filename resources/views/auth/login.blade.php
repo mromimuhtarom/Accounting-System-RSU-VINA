@@ -4,7 +4,7 @@
 <link rel="icon" type="image/png" href="{{ asset('public/images/vina-estetica-logo.png') }}?v=20261113">
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#071f2d">
-<title>Login Accounting | {{ config('accounting.hospital_name','RS. Vina Estetica') }}</title>
+<title>Accounting RSUVE</title>
 <link rel="stylesheet" href="{{ asset('public/css/accounting.css') }}?v=20261025-perf-1">
 <link rel="stylesheet" href="{{ asset('public/css/form-controls.css') }}?v=20261025-1">
 <link rel="stylesheet" href="{{ asset('public/css/usability.css') }}?v=20261029-2">

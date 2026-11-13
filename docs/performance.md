@@ -35,8 +35,6 @@ memiliki pemeriksaan batas query melalui `AuthenticationSessionTest`.
 - Filter daftar membandingkan langsung kolom DATE sehingga database dapat memakai
   indeks tanggal tanpa membungkus kolom dengan fungsi DATE().
 
-## Operasional
-
 ## Optimasi tambahan pada form dan dashboard
 
 - Dropdown menggunakan ulang teks pencarian yang sudah dinormalisasi. Daftar hasil

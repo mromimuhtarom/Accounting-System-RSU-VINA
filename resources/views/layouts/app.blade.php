@@ -7,7 +7,7 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <meta name="theme-color" content="#071f2d">
 <link rel="stylesheet" href="{{ asset('public/css/asset-reports.css') }}?v=20261029">
-<title>{{ $title ?? 'Accounting System' }} | {{ config('accounting.hospital_name', 'RS. Vina Estetica') }}</title>
+<title>Accounting RSUVE</title>
 <link rel="stylesheet" href="{{ asset('public/css/accounting.css') }}?v=20261025-perf-1">
 <link rel="stylesheet" href="{{ asset('public/css/form-controls.css') }}?v=20261025-1">
 <link rel="stylesheet" href="{{ asset('public/css/searchable-select.css') }}?v=20261025-1">
