@@ -69,6 +69,7 @@
                     <td>{{ $e->creator?->name ?? '-' }}</td>
                     <td>
                             <div class="actions">
+                                @if($e->attachment_path && $e->expense_type === 'GENERAL' && auth()->user()->canManageTransaction($e->created_by))<a class="btn" href="{{ route($routePrefix.'.attachment', $e) }}" target="_blank" rel="noopener noreferrer">Lihat Bukti</a>@endif
                                 @if($e->expense_type === 'REFERRAL')
                                     @if($e->journal || $isCashier)
                                         <span class="muted">Dikelola melalui modul Referal</span>

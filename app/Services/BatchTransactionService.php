@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\{DB, Storage};
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class BatchTransactionService
@@ -49,7 +49,7 @@ class BatchTransactionService
                 }
             });
         } catch (\Throwable $e) {
-            foreach ($files as $file) Storage::disk($file['disk'])->delete($file['path']);
+            foreach ($files as $file) app(TransactionEvidence::class)->delete($file['path']);
             throw $e;
         }
         return redirect()->route($returnRoute)->with('success', count($children).' transaksi berhasil disimpan sekaligus.');

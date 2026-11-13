@@ -7,7 +7,6 @@ use App\Models\CashBankAccount;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Services\ReferralAccountService;
-use Illuminate\Support\Facades\Storage;
 use App\Services\JournalService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -71,7 +70,7 @@ class ReferralExpenseController extends Controller
                 return app(\App\Services\AutomaticJournalService::class)->expense($expense, $request->user()->id);
             });
         } catch (\Throwable $e) {
-            if ($path) Storage::disk('local')->delete($path);
+            if ($path) app(\App\Services\TransactionEvidence::class)->delete($path);
             throw $e;
         }
 
@@ -116,10 +115,10 @@ class ReferralExpenseController extends Controller
                 app(\App\Services\ExpenseTransactionService::class)->update($referral, $data);
             });
         } catch (\Throwable $e) {
-            if ($path) Storage::disk('local')->delete($path);
+            if ($path) app(\App\Services\TransactionEvidence::class)->delete($path);
             throw $e;
         }
-        if ($path && $oldPath && str_starts_with($oldPath, 'referral-evidence/')) Storage::disk('local')->delete($oldPath);
+        if ($path) app(\App\Services\TransactionEvidence::class)->retire($oldPath);
 
         return redirect()
             ->route('accounting.referrals.index')
@@ -199,25 +198,21 @@ class ReferralExpenseController extends Controller
         $this->ensureReferral($referral);
         $path = $referral->attachment_path;
         app(\App\Services\ExpenseTransactionService::class)->delete($referral);
-        if ($path && str_starts_with($path, 'referral-evidence/')) Storage::disk('local')->delete($path);
+        app(\App\Services\TransactionEvidence::class)->retire($path);
         return redirect()->route('accounting.referrals.index')->with('success', 'Pengeluaran referal berhasil dihapus.');
     }
 
     private function storeEvidence(Request $request): ?string
     {
-        if (!$request->hasFile('attachment')) return null;
-        $path = $request->file('attachment')->store('referral-evidence', 'local');
-        if (!$path) throw \Illuminate\Validation\ValidationException::withMessages(['attachment'=>'Bukti transaksi gagal disimpan. Silakan coba kembali.']);
-        \App\Services\BatchTransactionService::trackFile($request, 'local', $path);
-        return $path;
+        return app(\App\Services\TransactionEvidence::class)->store($request, true);
     }
 
     public function attachment(Expense $referral)
     {
         $this->ensureReferral($referral);
         $path = $referral->attachment_path;
-        abort_unless($path && str_starts_with($path, 'referral-evidence/') && !str_contains($path, '..') && Storage::disk('local')->exists($path), 404);
-        return Storage::disk('local')->download($path, 'Bukti-Referal-'.$referral->id.'.'.pathinfo($path, PATHINFO_EXTENSION), ['X-Content-Type-Options'=>'nosniff']);
+        abort_unless($path, 404);
+        return app(\App\Services\TransactionEvidence::class)->open($path, 'Bukti-Referal-'.$referral->id.'.'.pathinfo($path, PATHINFO_EXTENSION));
     }
 
     public function export(Request $request)

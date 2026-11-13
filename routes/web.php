@@ -81,6 +81,7 @@ Route::middleware('auth')->group(function () {
 
     // Kasir dapat melihat seluruh penerimaan dan pengeluaran serta mengelola pengeluaran umum.
     Route::middleware('role:KASIR')->prefix('kasir')->name('cashier.')->group(function () {
+        Route::get('/pengeluaran/{pengeluaran}/attachment', [ExpenseController::class, 'attachment'])->name('expenses.attachment');
         Route::match(['get', 'post'], '/excel-import/{module}', [\App\Http\Controllers\Accounting\ExcelImportController::class, 'handle'])->whereIn('module', ['receipts', 'expenses'])->name('excel-import');
         Route::resource('pasien', PatientController::class)->except(['show'])->parameters(['pasien' => 'patient'])->names([
             'index' => 'patients.index',
@@ -137,6 +138,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/penerimaan/{receipt}', [AccountingReceiptController::class, 'destroy'])->middleware('role:ACCOUNTING,KEPALA_KEUANGAN,ADMIN_ACCOUNTING')->name('receipts.destroy');
         Route::post('/penerimaan/{receipt}/journal', [AccountingReceiptController::class, 'generateJournal'])->middleware('role:ACCOUNTING,KEPALA_KEUANGAN')->name('receipts.journal');
 
+        Route::get('/pengeluaran/{pengeluaran}/attachment', [ExpenseController::class, 'attachment'])->name('pengeluaran.attachment');
         Route::resource('pengeluaran', ExpenseController::class)->except(['show','destroy']);
         Route::delete('/pengeluaran/{pengeluaran}', [ExpenseController::class, 'destroy'])->middleware('role:ACCOUNTING,KEPALA_KEUANGAN,ADMIN_ACCOUNTING')->name('pengeluaran.destroy');
         Route::post('/pengeluaran/{expense}/journal', [ExpenseController::class, 'generateJournal'])->middleware('role:ACCOUNTING,KEPALA_KEUANGAN')->name('pengeluaran.journal');

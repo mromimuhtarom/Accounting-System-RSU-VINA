@@ -67,16 +67,15 @@ class ExpenseController extends Controller
         $data['created_by'] = $request->user()->id;
         $data['status'] = 'ACTIVE';
 
-        if ($request->hasFile('attachment')) {
-            $data['attachment_path'] = $request
-                ->file('attachment')
-                ->store('expenses', 'public');
-            if (!$data['attachment_path']) throw ValidationException::withMessages(['attachment'=>'Bukti transaksi gagal disimpan.']);
-            \App\Services\BatchTransactionService::trackFile($request, 'public', $data['attachment_path']);
-        }
+        $path = app(\App\Services\TransactionEvidence::class)->store($request);
+        if ($path) $data['attachment_path'] = $path;
         unset($data['attachment']);
 
-        Expense::create($data);
+        try { Expense::create($data); }
+        catch (\Throwable $e) {
+            app(\App\Services\TransactionEvidence::class)->delete($path);
+            throw $e;
+        }
 
         return redirect()
             ->route($this->routePrefix($request) . '.index')
@@ -110,14 +109,17 @@ class ExpenseController extends Controller
 
         $data = $this->validated($request);
 
-        if ($request->hasFile('attachment')) {
-            $data['attachment_path'] = $request
-                ->file('attachment')
-                ->store('expenses', 'public');
-        }
+        $path = app(\App\Services\TransactionEvidence::class)->store($request);
+        $oldPath = $pengeluaran->attachment_path;
+        if ($path) $data['attachment_path'] = $path;
 
         unset($data['attachment']);
-        app(ExpenseTransactionService::class)->update($pengeluaran, $data);
+        try { app(ExpenseTransactionService::class)->update($pengeluaran, $data); }
+        catch (\Throwable $e) {
+            app(\App\Services\TransactionEvidence::class)->delete($path);
+            throw $e;
+        }
+        if ($path) app(\App\Services\TransactionEvidence::class)->retire($oldPath);
 
         return redirect()
             ->route($this->routePrefix($request) . '.index')
@@ -132,11 +134,20 @@ class ExpenseController extends Controller
             return back()->with('error', 'Pengeluaran Referal dikelola melalui module Referal.');
         }
 
+        $path = $pengeluaran->attachment_path;
         app(ExpenseTransactionService::class)->delete($pengeluaran);
+        app(\App\Services\TransactionEvidence::class)->retire($path);
 
         return redirect()
             ->route($this->routePrefix($request) . '.index')
             ->with('success', 'Pengeluaran berhasil dihapus.');
+    }
+
+    public function attachment(Request $request, Expense $pengeluaran)
+    {
+        $this->ensureAccessible($request, $pengeluaran);
+        abort_unless($pengeluaran->expense_type === 'GENERAL' && $pengeluaran->attachment_path, 404);
+        return app(\App\Services\TransactionEvidence::class)->open($pengeluaran->attachment_path);
     }
 
     public function generateJournal(

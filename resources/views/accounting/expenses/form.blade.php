@@ -104,6 +104,7 @@
             </div>
             <div class="field">
                 <label for="expense-attachment">Lampiran bukti <span class="expense-optional">(opsional)</span></label>
+                @if($expense?->attachment_path)<a class="btn" href="{{ route($routePrefix.'.attachment', $expense) }}" target="_blank" rel="noopener noreferrer">Lihat Bukti Tersimpan</a>@endif
                 <input id="expense-attachment" type="file" name="attachment" aria-describedby="expense-attachment-help">
                 <small class="expense-help" id="expense-attachment-help">Pilih berkas bukti dari perangkat Anda. Ukuran maksimal 5 MB.</small>
                 @error('attachment') <span class="expense-error">{{ $message }}</span> @enderror
