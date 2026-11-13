@@ -1,0 +1,85 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Transaction controls regression checks</title>
+<pre id="result">RUNNING</pre>
+<select id="large"><option value="">Pilih</option></select>
+<script>
+for (let i = 0; i < 2000; i++) document.querySelector('#large').add(new Option(`Nama PT ${i}`, `pt-${i}`));
+</script>
+<form data-batch-form>
+<textarea data-batch-paste></textarea><button type="button" data-import-batch>Import</button><span data-paste-status></span>
+<div data-batch-rows><section data-batch-row>
+<span data-batch-title></span><button type="button" data-remove-batch-row>Remove</button>
+<select name="rows[0][expense_category_id]"><option value="1">Kategori 1</option></select>
+<textarea name="rows[0][description]"></textarea>
+<input type="number" name="rows[0][amount]" min="0.01" step="0.01">
+</section></div>
+<button type="button" data-add-batch-row>Add</button><span data-batch-count></span><span data-batch-total></span>
+<template data-batch-template><section data-batch-row>
+<span data-batch-title></span><button type="button" data-remove-batch-row>Remove</button>
+<select name="rows[__INDEX__][expense_category_id]"><option value="1">Kategori 1</option></select>
+<textarea name="rows[__INDEX__][description]"></textarea>
+<input type="number" name="rows[__INDEX__][amount]" min="0.01" step="0.01">
+</section></template>
+</form>
+<select id="doctor" data-allow-create="true" data-option-group="doctors"><option value="">Pilih dokter</option></select>
+<script src="../../public/js/searchable-select.js"></script>
+<script src="../../public/js/form-controls.js"></script>
+<script src="../../public/js/batch-transactions.js"></script>
+<script>
+window.addEventListener('error', event => document.querySelector('#result').textContent = 'FAIL: '+event.message);
+document.addEventListener('DOMContentLoaded', async () => {
+    const tick = () => new Promise(resolve => setTimeout(resolve, 30));
+    let checks = 0;
+    const assert = (value, message) => { if (!value) throw Error(message); checks++; };
+    try {
+        await tick();
+        const large = document.querySelector('#large');
+        const wrapper = large.closest('.searchable-select');
+        wrapper.querySelector('.ss-control').click();
+        const search = wrapper.querySelector('.ss-search');
+        search.value = 'PT 1999'; search.dispatchEvent(new Event('input'));
+        assert(wrapper.querySelectorAll('.ss-option').length === 1, 'Search through 2,000 options');
+        wrapper.querySelector('.ss-option').click();
+        assert(large.value === 'pt-1999', 'Delegated selection retains the value');
+        large.options[2000].text = 'PT Renamed';
+        await tick();
+        wrapper.querySelector('.ss-control').click();
+        search.value = 'Renamed'; search.dispatchEvent(new Event('input'));
+        assert(wrapper.querySelector('.ss-option')?.textContent === 'PT Renamed', 'Search cache respects renamed options');
+        const doctor = document.querySelector('#doctor');
+        const doctorWrapper = doctor.closest('.searchable-select');
+        doctorWrapper.querySelector('.ss-control').click();
+        const doctorSearch = doctorWrapper.querySelector('.ss-search');
+        doctorSearch.value = 'dr. Baru'; doctorSearch.dispatchEvent(new Event('input'));
+        doctorWrapper.querySelector('.ss-option').click();
+        assert(doctor.value === 'dr. Baru', 'Create a new doctor');
+        await tick();
+        document.querySelector('[data-batch-paste]').value = 'PT A\t1.234,50\nPT B\t2.000';
+        document.querySelector('[data-import-batch]').click();
+        await tick();
+        const form = document.querySelector('form');
+        const data = new FormData(form);
+        assert(data.get('rows[0][amount]') === '1234.50', 'Existing row posts imported decimal amount');
+        assert(data.get('rows[1][amount]') === '2000', 'New row posts imported amount');
+        assert(form.querySelector('[data-money-field="rows[0][amount]"]').value === '1.234,50', 'Imported amount is visible');
+        assert(form.querySelector('[data-batch-total]').textContent.includes('3.234,50'), 'Imported total is correct: '+form.querySelector('[data-batch-total]').textContent);
+        const amount = form.querySelector('[data-money-field="rows[0][amount]"]');
+        amount.value = '5.000'; amount.dispatchEvent(new Event('input', {bubbles:true}));
+        assert(form.querySelector('[data-batch-total]').textContent.includes('7.000,00'), 'Typing updates hidden amount and total');
+        document.querySelector('[data-add-batch-row]').click();
+        await tick();
+        assert(form.querySelectorAll('[data-batch-row] .searchable-select').length === 3, 'Dynamic rows enhanced once');
+        assert(form.querySelectorAll('.money-input').length === 3, 'Dynamic money inputs enhanced once');
+        for (const input of [...form.querySelectorAll('.money-input')].slice(0, 2)) {
+            input.value = '9.999.999.999.999.999,99';
+            input.dispatchEvent(new Event('input', {bubbles:true}));
+        }
+        assert(form.querySelector('[data-batch-total]').textContent.includes('19.999.999.999.999.999,98'), 'Large amounts retain exact cents');
+        form.reset();
+        await tick();
+        assert(form.querySelector('[data-money-field="rows[0][amount]"]').value === '', 'Reset restores the initial amount');
+        document.querySelector('#result').textContent = `PASS: ${checks} browser checks`;
+    } catch (error) { document.querySelector('#result').textContent = 'FAIL: '+error.message; }
+});
+</script>

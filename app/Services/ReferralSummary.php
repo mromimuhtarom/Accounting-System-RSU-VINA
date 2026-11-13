@@ -19,23 +19,37 @@ class ReferralSummary
         $masters = ReferralRecipient::all()->keyBy('normalized_name');
         $aliases = \Illuminate\Support\Facades\DB::table('referral_recipient_legacy_names')->pluck('referral_recipient_id', 'name');
         $byId = $masters->keyBy('id');
-        return $this->expenses($start, $end)->groupBy(function ($expense) use ($aliases) {
-            return $expense->referral_recipient_id
+        $groups = [];
+        $expenses = Expense::query()->select(['id', 'referral_recipient_id', 'referral_recipient', 'referral_medical_record_no',
+            'referral_procedure', 'amount', 'patient_id', 'receipt_id'])
+            ->with(['patient:id,medical_record_no', 'receipt:id,patient_id', 'receipt.patient:id,medical_record_no'])
+            ->where('expense_type', 'REFERRAL')->where('status', 'ACTIVE')
+            ->whereBetween('expense_date', [$start, $end])->lazyById(500);
+        foreach ($expenses as $expense) {
+            $key = $expense->referral_recipient_id
                 ?: ($aliases->get($expense->referral_recipient) ?: 'legacy:'.ReferralRecipient::normalizeName($expense->referral_recipient ?? ''));
-        })->map(function ($items, $key) use ($byId) {
-            $first = $items->first();
-            $recipient = $byId->get($key);
-            return [
-                'recipient_id'=>$recipient?->id, 'name'=>$recipient?->name ?? ($first->referral_recipient ?: 'Penerima historis belum diisi'),
-                'transactions'=>$items->count(),
-                'patients'=>$items->map(fn ($e) => mb_strtoupper(trim($e->referral_medical_record_no ?: ($e->patient?->medical_record_no ?: $e->receipt?->patient?->medical_record_no ?? ''))))->filter()->unique()->count(),
-                'sc'=>$items->where('referral_procedure', 'SC')->count(),
-                'ri'=>$items->where('referral_procedure', 'RI')->count(),
-                'sc_amount'=>(float) $items->where('referral_procedure', 'SC')->sum('amount'),
-                'ri_amount'=>(float) $items->where('referral_procedure', 'RI')->sum('amount'),
-                'unclassified'=>$items->whereNotIn('referral_procedure', ['SC', 'RI'])->count(),
-                'total'=>(float) $items->sum('amount'),
-            ];
+            if (!isset($groups[$key])) {
+                $recipient = $byId->get($key);
+                $groups[$key] = ['recipient_id'=>$recipient?->id, 'name'=>$recipient?->name ?? ($expense->referral_recipient ?: 'Penerima historis belum diisi'),
+                    'transactions'=>0, 'patients'=>[], 'sc'=>0, 'ri'=>0, 'sc_amount'=>0, 'ri_amount'=>0, 'unclassified'=>0, 'total'=>0];
+            }
+            $group = &$groups[$key];
+            $group['transactions']++;
+            $mrn = mb_strtoupper(trim($expense->referral_medical_record_no ?: ($expense->patient?->medical_record_no ?: $expense->receipt?->patient?->medical_record_no ?? '')));
+            if ($mrn) $group['patients'][$mrn] = true;
+            $amount = LedgerAmounts::cents($expense->amount);
+            $group['total'] += $amount;
+            if (in_array($expense->referral_procedure, ['SC', 'RI'], true)) {
+                $procedure = strtolower($expense->referral_procedure);
+                $group[$procedure]++;
+                $group[$procedure.'_amount'] += $amount;
+            } else $group['unclassified']++;
+            unset($group);
+        }
+        return collect($groups)->map(function ($group) {
+            $group['patients'] = count($group['patients']);
+            foreach (['total', 'sc_amount', 'ri_amount'] as $field) $group[$field] = $group[$field] / 100;
+            return $group;
         })->sortByDesc('total')->values();
     }
 

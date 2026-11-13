@@ -8,6 +8,17 @@
     const entries = () => [...rows.querySelectorAll('[data-batch-row]')];
     const field = (row, key) => row.querySelector(`[name$="[${key}]"]`);
     const shared = ['transaction_date', 'expense_date', 'chart_account_id', 'expense_category_id', 'guarantor_id', 'service_type', 'payment_method', 'cash_bank_account_id'];
+    const currency = new Intl.NumberFormat('id-ID', {style:'currency', currency:'IDR', minimumFractionDigits:2, maximumFractionDigits:2});
+    let importing = false;
+    function refreshTotal() {
+        const total = entries().reduce((sum, row) => {
+            const match = field(row, 'amount').value.match(/^(\d+)(?:\.(\d{1,2}))?$/);
+            return match ? sum + BigInt(match[1]) * 100n + BigInt((match[2] || '').padEnd(2, '0')) : sum;
+        }, 0n);
+        const fraction = String(total % 100n).padStart(2, '0');
+        const formatted = currency.formatToParts(total / 100n).map(part => part.type === 'fraction' ? fraction : part.value).join('');
+        form.querySelector('[data-batch-total]').textContent = `Total: ${formatted}`;
+    }
     function refresh() {
         const list = entries();
         list.forEach((row, index) => {
@@ -16,10 +27,9 @@
         });
         add.disabled = list.length >= 20;
         form.querySelector('[data-batch-count]').textContent = `${list.length} / 20 transaksi`;
-        const total = list.reduce((sum, row) => sum + (Number(field(row, 'amount').value) || 0), 0);
-        form.querySelector('[data-batch-total]').textContent = `Total: ${new Intl.NumberFormat('id-ID', {style:'currency', currency:'IDR'}).format(total)}`;
+        refreshTotal();
     }
-    function append() {
+    function append(refreshAfter = true) {
         if (entries().length >= 20) return null;
         const used = new Set([...rows.querySelectorAll('[name^="rows["]')].map(e => Number(e.name.match(/^rows\[(\d+)\]/)?.[1])));
         let index = 0;
@@ -39,7 +49,7 @@
             if (field(source, key) && field(row, key)) field(row, key).value = field(source, key).value;
         });
         rows.append(row);
-        refresh();
+        if (refreshAfter) refresh();
         return row;
     }
     add.addEventListener('click', () => append()?.querySelector('input,select,textarea')?.focus());
@@ -49,7 +59,9 @@
         button.closest('[data-batch-row]').remove();
         refresh();
     });
-    rows.addEventListener('input', refresh);
+    rows.addEventListener('input', event => {
+        if (!importing && event.target.matches('[name$="[amount]"],[data-money-field$="[amount]"]')) refreshTotal();
+    });
     function parseAmount(raw) {
         let value = raw.trim().replace(/^Rp\.?\s*/i, '').replace(/\s/g, '');
         if (/^\d{1,3}(\.\d{3})+(,\d{1,2})?$/.test(value)) value = value.replaceAll('.', '').replace(',', '.');
@@ -80,11 +92,16 @@
             status.textContent = 'Jumlah melebihi 20 transaksi. Bagi data menjadi beberapa penyimpanan.';
             return;
         }
-        parsed.forEach(item => {
-            const row = empty.shift() || append();
-            (field(row, 'notes') || field(row, 'description')).value = item.description;
-            field(row, 'amount').value = item.amount;
-        });
+        importing = true;
+        try {
+            parsed.forEach(item => {
+                const row = empty.shift() || append(false);
+                (field(row, 'notes') || field(row, 'description')).value = item.description;
+                const visibleAmount = row.querySelector('[data-money-field$="[amount]"]') || field(row, 'amount');
+                visibleAmount.value = visibleAmount.dataset.moneyField ? window.RsuveMoney.formatCanonical(item.amount) : item.amount;
+                visibleAmount.dispatchEvent(new Event('input', {bubbles:true}));
+            });
+        } finally { importing = false; }
         input.value = '';
         status.textContent = `${parsed.length} baris ditambahkan. Periksa kategori, rincian dan total, lalu Simpan Semua Transaksi.`;
         refresh();

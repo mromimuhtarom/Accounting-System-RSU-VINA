@@ -36,13 +36,10 @@ class DashboardController extends Controller
         }
 
         if ($role === 'KASIR') {
-            $stats = [
-                'today_count' => Receipt::where('cashier_id', $request->user()->id)
-                    ->where('status','ACTIVE')->whereDate('transaction_date', today())->count(),
-                'today_income' => Receipt::where('cashier_id', $request->user()->id)
-                    ->where('status','ACTIVE')->whereDate('transaction_date', today())
-                    ->whereIn('payment_method', ['CASH','TRANSFER','QRIS','CARD'])->sum('amount'),
-            ];
+            $summary = Receipt::where('cashier_id', $request->user()->id)->where('status', 'ACTIVE')
+                ->where('transaction_date', today()->toDateString())
+                ->selectRaw("COUNT(*) AS today_count, COALESCE(SUM(CASE WHEN payment_method IN ('CASH','TRANSFER','QRIS','CARD') THEN amount ELSE 0 END),0) AS today_income")->first();
+            $stats = ['today_count'=>(int) $summary->today_count, 'today_income'=>$summary->today_income];
         }
 
         if (in_array($role, ['ACCOUNTING','ADMIN_ACCOUNTING','ATASAN','FINANCE','KEPALA_KEUANGAN','DIREKTUR','OWNER'])) {

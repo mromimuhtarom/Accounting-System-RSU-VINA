@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="id">
 <head>
+<link rel="icon" type="image/png" href="{{ asset('public/images/vina-estetica-logo.png') }}?v=20261113">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -169,9 +170,9 @@
 @include('layouts.partials.system-assistant')
 <script src="{{ asset('public/js/system-assistant.js') }}?v=20261030-profile-1" defer></script>
 <script src="{{ asset('public/js/accounting-ui.js') }}?v=20261025-perf-1"></script>
-<script src="{{ asset('public/js/searchable-select.js') }}?v=20261112-doctor-create"></script>
+<script src="{{ asset('public/js/searchable-select.js') }}?v=20261113-perf-2"></script>
 @stack('scripts')
-<script src="{{ asset('public/js/form-controls.js') }}?v=20261029-readable-money"></script>
+<script src="{{ asset('public/js/form-controls.js') }}?v=20261113-perf-2"></script>
 <script src="{{ asset('public/js/usability.js') }}?v=20261030-3" defer></script>
 <script src="{{ asset('public/js/idle-session.js') }}?v=20261025-1"
     data-activity-url="{{ route('session.activity') }}" data-logout-url="{{ route('logout') }}"

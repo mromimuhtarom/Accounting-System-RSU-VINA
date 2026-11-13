@@ -76,11 +76,11 @@
         const name = input.name;
         const minimum = input.getAttribute('min');
         const maximum = input.getAttribute('max');
+        const originalDefaultValue = input.defaultValue;
         const hidden = document.createElement('input');
         hidden.type = 'hidden';
         hidden.name = name;
         hidden.value = input.value;
-        hidden.defaultValue = input.defaultValue;
         input.type = 'text';
         input.inputMode = 'decimal';
         input.classList.add('money-input');
@@ -141,13 +141,15 @@
             else event.formData.delete(name);
         });
         input.form?.addEventListener('reset', () => window.setTimeout(() => {
-            input.value = formatCanonical(hidden.defaultValue);
+            input.value = formatCanonical(originalDefaultValue);
             sync();
         }, 0));
         sync();
     }
 
     function enhance(container) {
+        if (container.matches?.('input[type="password"]')) enhancePassword(container);
+        if (container.matches?.('input[type="number"][name]') && moneyNames.test(container.name)) enhanceMoney(container);
         container.querySelectorAll('input[type="password"]').forEach(enhancePassword);
         container.querySelectorAll('input[type="number"][name]').forEach((input) => {
             if (moneyNames.test(input.name)) enhanceMoney(input);
@@ -160,8 +162,7 @@
             for (const mutation of mutations) {
                 for (const node of mutation.addedNodes) {
                     if (!(node instanceof Element)) continue;
-                    if (node.matches('input')) enhance(node.parentElement || document);
-                    else if (node.querySelector('input')) enhance(node);
+                    if (node.matches('input') || (node.childElementCount && node.querySelector('input'))) enhance(node);
                 }
             }
         }).observe(document.body, { childList: true, subtree: true });

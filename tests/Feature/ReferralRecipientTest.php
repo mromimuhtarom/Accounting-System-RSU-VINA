@@ -89,6 +89,32 @@ class ReferralRecipientTest extends ExpenseAccessTest
         $this->assertEquals(600000, $stats['total']);
     }
 
+    public function test_recap_streams_multiple_batches_and_counts_repeated_patients_once(): void
+    {
+        $recipient = ReferralRecipient::create(['name'=>'Penerima Banyak Rincian']);
+        $source = $this->postReferral($recipient, ['expense_date'=>'2026-09-01']);
+        $template = $source->getAttributes();
+        unset($template['id']);
+        $rows = [];
+        for ($i = 0; $i < 501; $i++) {
+            $rows[] = array_replace($template, ['expense_no'=>'PERF-REF-'.$i, 'expense_date'=>'2026-10-15',
+                'amount'=>'10.25', 'referral_medical_record_no'=>'RM-'.($i % 10),
+                'referral_procedure'=>$i % 2 ? 'RI' : 'SC']);
+        }
+        foreach (array_chunk($rows, 100) as $chunk) DB::table('expenses')->insert($chunk);
+        DB::enableQueryLog();
+        $stats = app(ReferralSummary::class)->rows('2026-10-01','2026-10-31')->first();
+        $queries = DB::getQueryLog();
+        DB::disableQueryLog();
+        $this->assertSame(501, $stats['transactions']);
+        $this->assertSame(10, $stats['patients']);
+        $this->assertSame(251, $stats['sc']);
+        $this->assertSame(250, $stats['ri']);
+        $this->assertEquals(5135.25, $stats['total']);
+        $this->assertTrue(collect($queries)->contains(fn ($query) => str_contains($query['query'], 'limit 500')));
+        $this->assertFalse(collect($queries)->contains(fn ($query) => str_contains($query['query'], 'select * from "expenses"')));
+    }
+
     public function test_master_excel_reuses_names_and_rolls_back_ambiguous_import(): void
     {
         $recipient = ReferralRecipient::create(['name'=>'Budi Santoso', 'phone'=>'tetap']);

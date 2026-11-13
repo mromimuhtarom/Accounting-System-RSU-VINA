@@ -83,5 +83,5 @@
 <div class="card actions"><button type="button" class="btn" data-add-batch-row>+ Tambah Transaksi</button><strong data-batch-count aria-live="polite"></strong><strong data-batch-total aria-live="polite"></strong><button type="submit" class="btn primary">Simpan Semua Transaksi</button></div>
 <template data-batch-template>@include('transactions.batch-row', ['rowIndex'=>'__INDEX__','rowData'=>[]])</template>
 </form>
-@push('scripts')<script src="{{ asset('public/js/batch-transactions.js') }}" defer></script>@endpush
+@push('scripts')<script src="{{ asset('public/js/batch-transactions.js') }}?v=20261113-perf-2" defer></script>@endpush
 @endsection

@@ -12,6 +12,10 @@ class AppServiceProvider extends ServiceProvider
             'cashier.receipts.create', 'cashier.receipts.edit',
             'accounting.receipts.create', 'accounting.receipts.edit', 'transactions.batch',
         ], function ($view) {
+            if ($view->name() === 'transactions.batch' && ($view->getData()['module'] ?? null) !== 'receipts') {
+                $view->with('doctorNames', collect());
+                return;
+            }
             $view->with('doctorNames', Receipt::query()->whereNotNull('doctor_name')
                 ->where('doctor_name', '<>', '')->select('doctor_name')->distinct()
                 ->orderBy('doctor_name')->pluck('doctor_name')->map(fn ($name) => trim($name))->filter()->unique()->values());

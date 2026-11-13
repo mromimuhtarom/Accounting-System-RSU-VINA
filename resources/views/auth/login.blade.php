@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="id">
 <head>
+<link rel="icon" type="image/png" href="{{ asset('public/images/vina-estetica-logo.png') }}?v=20261113">
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#071f2d">
 <title>Login Accounting | {{ config('accounting.hospital_name','RS. Vina Estetica') }}</title>
@@ -28,6 +29,6 @@
     </div>
 </div>
 <script src="{{ asset('public/js/accounting-ui.js') }}?v=20261025-perf-1"></script>
-<script src="{{ asset('public/js/form-controls.js') }}?v=20261025-1"></script>
+<script src="{{ asset('public/js/form-controls.js') }}?v=20261113-perf-2"></script>
 </body>
 </html>

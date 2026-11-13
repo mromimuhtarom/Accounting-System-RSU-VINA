@@ -37,6 +37,29 @@ memiliki pemeriksaan batas query melalui `AuthenticationSessionTest`.
 
 ## Operasional
 
+## Optimasi tambahan pada form dan dashboard
+
+- Dropdown menggunakan ulang teks pencarian yang sudah dinormalisasi. Daftar hasil
+  dipasang ke DOM sekaligus dengan fragment, dan pemilihan memakai satu event handler.
+- Pengamatan elemen dinamis hanya memeriksa subtree yang baru ditambahkan, sehingga
+  menambah input tidak memicu pemindaian ulang seluruh form atau elemen saudaranya.
+- Total batch hanya dihitung ulang saat nominal atau susunan baris berubah. Import
+  banyak baris memperbarui tampilan total sekali setelah selesai. Nominal dihitung
+  dalam sen memakai BigInt agar angka besar tidak kehilangan desimal.
+- Tempel Excel menyinkronkan nilai terlihat dan nilai yang dikirim ke server.
+  Pemformatan kolom dinamis tidak lagi menimpa nominal dengan nilai awal kosong.
+- Dashboard kasir menggunakan satu agregat untuk jumlah transaksi dan pendapatan
+  hari ini. Form pengeluaran tidak lagi membaca daftar nama dokter yang tidak dipakai.
+- Rekap referal membaca maksimal 500 transaksi per batch dengan kolom yang diperlukan,
+  bukan menghidrasi seluruh transaksi, keterangan, dan data pasien ke memori sekaligus.
+  Penghitungan pasien unik dan pengelompokan penerima lama tetap dipertahankan.
+
+Regresi browser dapat diperiksa dengan membuka `tests/browser/transaction-controls.html`
+di Chrome. Hasil yang diharapkan: `PASS: 13 browser checks`. Fixture tidak mengakses
+database/aplikasi; ia memuat JavaScript lokal dan data uji saja.
+
+## Operasional deployment
+
 Jalankan migrasi indeks saat deploy:
 
 ```powershell

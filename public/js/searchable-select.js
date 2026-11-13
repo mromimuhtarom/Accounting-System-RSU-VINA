@@ -19,6 +19,7 @@
             this.select = select;
             this.highlightIndex = -1;
             this.visibleOptions = [];
+            this.searchLabels = new WeakMap();
             this.build();
             this.bind();
             this.refresh();
@@ -98,6 +99,12 @@
         }
 
         bind() {
+            this.optionsEl.addEventListener('click', (event) => {
+                const button = event.target.closest('.ss-option');
+                if (!button || button.disabled) return;
+                const option = this.visibleOptions[Number(button.dataset.index)];
+                if (option) this.choose(option);
+            });
             this.control.addEventListener('click', () => {
                 if (this.select.disabled) return;
                 this.wrapper.classList.contains('open') ? this.close() : this.open();
@@ -127,6 +134,7 @@
             this.observer.observe(this.select, {
                 childList: true,
                 subtree: true,
+                characterData: true,
                 attributes: true,
                 attributeFilter: ['hidden', 'disabled', 'selected', 'label']
             });
@@ -169,17 +177,23 @@
             return Array.from(this.select.options).filter((option) => {
                 if (option.hidden) return false;
                 if (!needle) return true;
-                return normalize(option.text).includes(needle);
+                const text = option.text;
+                let cached = this.searchLabels.get(option);
+                if (!cached || cached.text !== text) {
+                    cached = {text, normalized: normalize(text)};
+                    this.searchLabels.set(option, cached);
+                }
+                return cached.normalized.includes(needle);
             });
         }
 
         renderOptions(query) {
-            this.optionsEl.innerHTML = '';
             this.visibleOptions = this.getOptions(query);
             const newValue = query.trim();
+            const normalizedValue = normalize(newValue);
             if (this.select.dataset.allowCreate === 'true' && newValue &&
                 newValue.length <= Number(this.select.dataset.maxLength || 150) &&
-                !Array.from(this.select.options).some(option => normalize(option.value) === normalize(newValue))) {
+                !Array.from(this.select.options).some(option => normalize(option.value) === normalizedValue)) {
                 this.visibleOptions.push({value: newValue, text: `${this.select.dataset.createLabel || 'Tambah'}: ${newValue}`, create: true});
             }
 
@@ -187,10 +201,11 @@
                 const empty = document.createElement('div');
                 empty.className = 'ss-empty';
                 empty.textContent = 'Pilihan tidak ditemukan';
-                this.optionsEl.appendChild(empty);
+                this.optionsEl.replaceChildren(empty);
                 return;
             }
 
+            const fragment = document.createDocumentFragment();
             this.visibleOptions.forEach((option, index) => {
                 const button = document.createElement('button');
                 button.type = 'button';
@@ -204,12 +219,11 @@
                 if (option.disabled) {
                     button.disabled = true;
                     button.classList.add('disabled');
-                } else {
-                    button.addEventListener('click', () => this.choose(option));
                 }
 
-                this.optionsEl.appendChild(button);
+                fragment.appendChild(button);
             });
+            this.optionsEl.replaceChildren(fragment);
 
             this.applyHighlight();
         }
@@ -278,7 +292,9 @@
     }
 
     function enhance(root = document) {
-        root.querySelectorAll('select:not(.ss-native)').forEach((select) => {
+        const selects = [...root.querySelectorAll('select:not(.ss-native)')];
+        if (root.matches?.('select:not(.ss-native)')) selects.unshift(root);
+        selects.forEach((select) => {
             if (!instances.has(select)) new SearchableSelect(select);
         });
     }
@@ -294,8 +310,7 @@
             for (const mutation of mutations) {
                 for (const node of mutation.addedNodes) {
                     if (!(node instanceof Element)) continue;
-                    if (node.matches('select:not(.ss-native)')) enhance(node.parentElement || document);
-                    else if (node.querySelector?.('select:not(.ss-native)')) enhance(node);
+                    if (node.matches('select:not(.ss-native)') || (node.childElementCount && node.querySelector('select:not(.ss-native)'))) enhance(node);
                 }
             }
         });
