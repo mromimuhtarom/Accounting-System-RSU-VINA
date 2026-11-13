@@ -5,13 +5,14 @@ namespace App\Services;
 use App\Models\{ActivityLog, AuthenticationSession, User};
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\{DB, Schema};
+use Illuminate\Support\Facades\DB;
 
 class AuthenticationSessionService
 {
     private function available(): bool
     {
-        return Schema::hasTable('authentication_sessions') && Schema::hasTable('activity_logs');
+        $lookup = app(RequestDatabaseLookup::class);
+        return $lookup->hasTable('authentication_sessions') && $lookup->hasTable('activity_logs');
     }
 
     public function start(Request $request, User $actor, bool $newLogin = true): ?AuthenticationSession
@@ -24,7 +25,7 @@ class AuthenticationSessionService
             $lastActivity = $newLogin ? now('UTC') : Carbon::createFromTimestamp((int)$request->session()->get('last_activity_at', now()->timestamp), 'UTC');
             $session = AuthenticationSession::firstOrCreate(['session_hash'=>$hash], [
                 'actor_id'=>$actor->id, 'actor_name'=>$actor->name,
-                'actor_email'=>$actor->email, 'actor_roles'=>$actor->roles()->pluck('code')->implode(', '),
+                'actor_email'=>$actor->email, 'actor_roles'=>$actor->loadMissing('roles')->roles->pluck('code')->implode(', '),
                 'device_name'=>app(DeviceInfo::class)->name($request), 'user_agent'=>mb_substr($request->userAgent() ?? '', 0, 4096),
                 'ip_address'=>$request->ip(), 'logged_in_at'=>$newLogin ? now('UTC') : null,
                 'last_activity_at'=>$lastActivity, 'expires_at'=>$lastActivity->copy()->addMinutes((int)config('session.lifetime',120)),
@@ -38,13 +39,16 @@ class AuthenticationSessionService
     public function touch(Request $request): bool
     {
         if (!$this->available()) return true;
-        $session = $this->start($request, $request->user(), false);
-        return DB::transaction(function () use ($session) {
-            $session = AuthenticationSession::whereKey($session->id)->lockForUpdate()->firstOrFail();
-            if ($session->logged_out_at) return false;
-            $session->update(['last_activity_at'=>now('UTC'), 'expires_at'=>now('UTC')->addMinutes((int)config('session.lifetime',120))]);
-            return true;
-        });
+        $hash = hash('sha256', $request->session()->getId());
+        $session = AuthenticationSession::where('session_hash', $hash)->first();
+        if (!$session) $session = $this->start($request, $request->user(), false);
+        if ($session->logged_out_at) return false;
+        // Conditional write prevents a concurrent logout from being resurrected,
+        // without a separate transaction and SELECT FOR UPDATE on every page.
+        $updated = AuthenticationSession::whereKey($session->id)->whereNull('logged_out_at')->update([
+            'last_activity_at'=>now('UTC'), 'expires_at'=>now('UTC')->addMinutes((int)config('session.lifetime',120)),
+        ]);
+        return $updated > 0 || AuthenticationSession::whereKey($session->id)->whereNull('logged_out_at')->exists();
     }
 
     public function endCurrent(Request $request, string $reason): void

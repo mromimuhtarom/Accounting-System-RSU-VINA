@@ -12,7 +12,8 @@ class ExpireIdleSession
     public function handle(Request $request, Closure $next): Response
     {
         $sessions = app(\App\Services\AuthenticationSessionService::class);
-        $sessions->expireDue();
+        // Global expiry logging is handled by sessions:expire-log (scheduled every
+        // minute), rather than making each cashier request sweep every user's sessions.
         if (Auth::check()) {
             $lastActivity = $request->session()->get('last_activity_at');
             $timeout = (int) config('session.lifetime', 120) * 60;

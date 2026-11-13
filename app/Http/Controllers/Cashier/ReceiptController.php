@@ -20,11 +20,11 @@ class ReceiptController extends Controller
             ->latest('id');
 
         if ($request->filled('date_from')) {
-            $query->whereDate('transaction_date', '>=', $request->date_from);
+            $query->where('transaction_date', '>=', $request->date_from);
         }
 
         if ($request->filled('date_to')) {
-            $query->whereDate('transaction_date', '<=', $request->date_to);
+            $query->where('transaction_date', '<=', $request->date_to);
         }
 
         if ($request->filled('cashier_id')) {

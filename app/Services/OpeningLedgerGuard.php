@@ -5,14 +5,13 @@ namespace App\Services;
 use App\Models\JournalEntry;
 use App\Models\OpeningBalance;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class OpeningLedgerGuard
 {
     public function check(JournalEntry $journal): void
     {
-        if (! Schema::hasTable('opening_balances')) {
+        if (! app(RequestDatabaseLookup::class)->hasTable('opening_balances')) {
             return;
         }
         // Same lock as opening approval/posting; existing journal services run inside transactions.

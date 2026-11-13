@@ -4,8 +4,6 @@ namespace App\Services;
 
 use App\Models\ActivityLog;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class ActivityLogger
 {
@@ -22,9 +20,14 @@ class ActivityLogger
     public function record(Model $model, string $action, ?array $before, ?array $after, array $changed): void
     {
         $actor = auth()->user();
-        if (!$actor || !Schema::hasTable('activity_logs')) return;
+        if (!$actor) return;
         $changed = array_values(array_diff($changed, ['updated_at', 'created_at', 'last_login_at', 'remember_token']));
         if ($action === 'updated' && $changed === []) return;
+        $lookup = app(RequestDatabaseLookup::class);
+        if (!$lookup->hasTable('activity_logs')) return;
+        $lookup->forgetRecord($model->getTable(), $model->getKey());
+        if ($model->is($actor) && in_array('roles', $changed, true)) $actor->unsetRelation('roles');
+        $actor->loadMissing('roles');
 
         $type = class_basename($model);
         $form = self::FORMS[$type] ?? $type;
@@ -42,7 +45,7 @@ class ActivityLogger
             ?? $form.' #'.$model->getKey();
         ActivityLog::create([
             'actor_id'=>$actor->id, 'actor_name'=>$actor->name, 'actor_email'=>$actor->email,
-            'actor_roles'=>$actor->roles()->pluck('code')->implode(', '), 'action'=>$action, 'menu'=>$menu,
+            'actor_roles'=>$actor->roles->pluck('code')->implode(', '), 'action'=>$action, 'menu'=>$menu,
             'form_name'=>$form, 'route_name'=>request()->route()?->getName(),
             'subject_type'=>get_class($model), 'subject_id'=>(string) $model->getKey(), 'subject_label'=>$label,
             'before_values'=>$this->snapshot($before), 'after_values'=>$this->snapshot($after),
@@ -65,8 +68,8 @@ class ActivityLogger
             'financial_group_id'=>['financial_groups','name'],
         ];
         foreach ($references as $field => [$table, $column]) {
-            if (!empty($attributes[$field]) && Schema::hasTable($table)) {
-                $name = DB::table($table)->where('id', $attributes[$field])->value($column);
+            if (!empty($attributes[$field])) {
+                $name = app(RequestDatabaseLookup::class)->label($table, $column, $attributes[$field]);
                 if ($name !== null) $attributes[$field] = ['id'=>$attributes[$field], 'nama'=>$name];
             }
         }

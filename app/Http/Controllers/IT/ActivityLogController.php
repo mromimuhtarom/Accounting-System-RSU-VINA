@@ -12,6 +12,7 @@ class ActivityLogController extends Controller
     public function index(Request $request)
     {
         $isSessionLog = $request->routeIs('it.session-logs.*');
+        if ($isSessionLog) app(\App\Services\AuthenticationSessionService::class)->expireDue();
         $actions = $isSessionLog ? ['login','logout','logout_auto'] : ['created','updated','deleted','restored'];
         $filters = $request->validate([
             'actor_id'=>['nullable','integer'], 'action'=>['nullable', \Illuminate\Validation\Rule::in($actions)],

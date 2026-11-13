@@ -36,11 +36,11 @@ class ExpenseController extends Controller
             });
         }
         if ($request->filled('date_from')) {
-            $query->whereDate('expense_date', '>=', $request->date_from);
+            $query->where('expense_date', '>=', $request->date_from);
         }
 
         if ($request->filled('date_to')) {
-            $query->whereDate('expense_date', '<=', $request->date_to);
+            $query->where('expense_date', '<=', $request->date_to);
         }
 
         return view('accounting.expenses.index', [

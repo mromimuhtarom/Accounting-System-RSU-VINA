@@ -23,8 +23,8 @@ class ReferralExpenseController extends Controller
     {
         $query = Expense::with(['referralRecipient', 'patient', 'account', 'receipt.account', 'cashBankAccount', 'journal'])
             ->where('expense_type', 'REFERRAL')->latest('expense_date')->latest('id');
-        if ($request->filled('date_from')) $query->whereDate('expense_date', '>=', $request->date_from);
-        if ($request->filled('date_to')) $query->whereDate('expense_date', '<=', $request->date_to);
+        if ($request->filled('date_from')) $query->where('expense_date', '>=', $request->date_from);
+        if ($request->filled('date_to')) $query->where('expense_date', '<=', $request->date_to);
         if ($request->filled('search')) {
             $term = trim((string) $request->search);
             $query->where(fn ($q) => $q->where('referral_recipient', 'like', "%{$term}%")

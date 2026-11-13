@@ -39,6 +39,24 @@ class AuthenticationSessionTest extends TestCase
         $this->withCookie(config('session.cookie'), session()->getId());
     }
 
+    public function test_login_and_heartbeat_do_not_sweep_other_devices_or_lock_on_every_page(): void
+    {
+        DB::enableQueryLog();
+        $this->login();
+        $loginQueries = DB::getQueryLog();
+        DB::flushQueryLog();
+        $this->withCredentials()->postJson(route('session.activity'))->assertNoContent();
+        $heartbeatQueries = DB::getQueryLog();
+        DB::disableQueryLog();
+        $this->assertLessThanOrEqual(40, count($loginQueries));
+        $this->assertLessThanOrEqual(12, count($heartbeatQueries));
+        foreach (array_merge($loginQueries, $heartbeatQueries) as $query) {
+            $sql = strtolower($query['query']);
+            $this->assertFalse(str_contains($sql, 'authentication_sessions') && str_contains($sql, 'expires_at') && str_contains($sql, '<='), 'Login/heartbeat must not scan all expired devices.');
+            $this->assertStringNotContainsString('for update', $sql);
+        }
+    }
+
     public function test_successful_login_records_device_ip_actor_and_time_without_session_token(): void
     {
         $this->login();
