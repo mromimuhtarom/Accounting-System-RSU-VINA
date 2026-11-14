@@ -136,6 +136,30 @@ class AuthenticationSessionTest extends TestCase
         $this->assertSame('idle_timeout', $normal->fresh()->logout_reason);
     }
 
+    public function test_unchecked_login_has_no_persistent_device_cookie_and_keeps_normal_timeout(): void
+    {
+        $this->get(route('login'))->assertOk()->assertSee('Tetap masuk sampai saya logout');
+        $response = $this->post(route('login.store'), ['email'=>$this->user->email, 'password'=>'login-secret']);
+        $response->assertSessionHas('keep_signed_in', false)->assertCookieExpired(AuthenticationSessionService::PERSISTENT_COOKIE);
+        $device = AuthenticationSession::firstOrFail();
+        $this->assertFalse($device->keep_signed_in);
+        $this->assertNull($device->persistent_token_hash);
+        $this->withCookie(config('session.cookie'), session()->getId());
+        $this->travel(2)->hours();
+        $this->withCredentials()->postJson(route('session.activity'))->assertUnauthorized();
+        $this->assertGuest();
+    }
+
+    public function test_disabling_an_account_also_ends_its_persistent_session(): void
+    {
+        $this->post(route('login.store'), ['email'=>$this->user->email, 'password'=>'login-secret', 'remember'=>1])->assertSessionHasNoErrors();
+        $this->withCookie(config('session.cookie'), session()->getId());
+        auth()->user()->update(['is_active'=>false]);
+        $this->withCredentials()->getJson(route('session.activity'))->assertUnauthorized();
+        $this->assertGuest();
+        $this->assertSame('account_disabled', AuthenticationSession::firstOrFail()->logout_reason);
+    }
+
     public function test_failed_login_is_not_recorded_as_successful_login(): void
     {
         $this->post(route('login.store'),['email'=>$this->user->email,'password'=>'wrong'])->assertSessionHasErrors('email');

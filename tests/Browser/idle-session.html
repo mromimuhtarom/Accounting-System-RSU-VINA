@@ -1,0 +1,56 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="csrf-token" content="old-token">
+<title>Idle and persistent session checks</title>
+<pre id="result">RUNNING</pre>
+<form><input type="hidden" name="_token" value="old-token"><button type="submit">Submit</button></form>
+<script>
+const keep = new URLSearchParams(location.search).get('keep') === '1';
+const nativeTimeout = window.setTimeout.bind(window);
+let clock = Date.now();
+Date.now = () => clock;
+const intervals = [];
+const calls = [];
+window.setInterval = callback => { intervals.push(callback); return 1; };
+window.setTimeout = (callback, delay) => delay === 1500 ? 1 : nativeTimeout(callback, delay);
+window.fetch = (url, options) => {
+    calls.push({url, ...options});
+    if (url === '/logout') return new Promise(() => {});
+    return Promise.resolve({ok:true, status:200, redirected:false, json:async () => ({csrf_token:'renewed-token-'+calls.length})});
+};
+const script = document.createElement('script');
+script.src = '../../public/js/idle-session.js';
+Object.assign(script.dataset, {keepSignedIn:keep ? '1' : '0', timeout:'7200000', activityKey:'idle-test-'+Math.random(), activityUrl:'/activity', logoutUrl:'/logout', loginUrl:'/login'});
+script.onload = async () => {
+    const tick = () => new Promise(resolve => nativeTimeout(resolve, 30));
+    let checks = 0;
+    const assert = (value, message) => { if (!value) throw Error(message); checks++; };
+    try {
+        clock += 120000;
+        intervals[0]();
+        await tick();
+        if (keep) {
+            assert(calls.length === 1 && calls[0].method === 'GET', 'Persistent session renews without activity');
+            assert(document.querySelector('[name="_token"]').value === 'renewed-token-1', 'Hidden CSRF token renewed');
+            assert(document.querySelector('meta[name="csrf-token"]').content === 'renewed-token-1', 'Meta CSRF token renewed');
+            clock += 3 * 3600000;
+            let submissions = 0;
+            document.querySelector('form').addEventListener('submit', event => { event.preventDefault(); submissions++; });
+            document.querySelector('form').requestSubmit();
+            await tick();
+            assert(submissions === 1, 'Sleeping tab restores session before exactly one submission');
+            assert(document.querySelector('[name="_token"]').value === 'renewed-token-2', 'Sleeping tab submits renewed CSRF');
+            assert(calls.every(call => call.url !== '/logout'), 'Persistent login never auto-logs-out for inactivity');
+        } else {
+            assert(calls.length === 0, 'Normal idle sessions are not kept alive');
+            clock += 3 * 3600000;
+            intervals[0]();
+            await tick();
+            assert(calls.length === 1 && calls[0].url === '/logout' && calls[0].method === 'POST', 'Normal session automatically logs out');
+            assert(JSON.parse(calls[0].body).reason === 'idle_timeout', 'Automatic logout keeps its audit reason');
+        }
+        document.querySelector('#result').textContent = `PASS: ${checks} ${keep ? 'persistent' : 'normal'} session browser checks`;
+    } catch (error) { document.querySelector('#result').textContent = 'FAIL: '+error.message; }
+};
+document.body.append(script);
+</script>
