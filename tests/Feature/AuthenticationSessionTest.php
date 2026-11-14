@@ -160,6 +160,26 @@ class AuthenticationSessionTest extends TestCase
         $this->assertSame('account_disabled', AuthenticationSession::firstOrFail()->logout_reason);
     }
 
+    public function test_multiple_restored_tabs_share_one_device_and_respect_its_logout(): void
+    {
+        $response = $this->post(route('login.store'), ['email'=>$this->user->email, 'password'=>'login-secret', 'remember'=>1]);
+        $token = $response->getCookie(AuthenticationSessionService::PERSISTENT_COOKIE)->getValue();
+        $service = app(AuthenticationSessionService::class);
+        $tabs = [];
+        foreach (['tab-a', 'tab-b'] as $name) {
+            $request = Request::create('/session/activity','GET',[],[AuthenticationSessionService::PERSISTENT_COOKIE=>$token]);
+            $store = new Store($name, new ArraySessionHandler(120)); $store->start();
+            $request->setLaravelSession($store); $request->setUserResolver(fn () => $this->user);
+            $this->assertTrue($service->restorePersistent($request));
+            $this->assertTrue($service->touch($request));
+            $tabs[] = $request;
+        }
+        $this->assertSame(1, AuthenticationSession::count());
+        $service->endCurrent($tabs[0], 'manual');
+        $this->assertFalse($service->touch($tabs[1]));
+        $this->assertFalse($service->restorePersistent($tabs[1]));
+    }
+
     public function test_failed_login_is_not_recorded_as_successful_login(): void
     {
         $this->post(route('login.store'),['email'=>$this->user->email,'password'=>'wrong'])->assertSessionHasErrors('email');

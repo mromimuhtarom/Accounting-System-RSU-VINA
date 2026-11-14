@@ -20,7 +20,7 @@ class ExpireIdleSession
             $lastActivity = $request->session()->get('last_activity_at');
             $timeout = (int) config('session.lifetime', 120) * 60;
 
-            $inactive = $request->user()->getAttribute('is_active') === false;
+            $inactive = $keepSignedIn && $request->user()->getAttribute('is_active') === false;
             $expired = $inactive || $restoreFailed || (!$keepSignedIn && $lastActivity !== null && now()->timestamp - (int) $lastActivity >= $timeout);
             if (!$expired && !$request->routeIs('logout')) $expired = !$sessions->touch($request);
             if ($expired) {

@@ -25,11 +25,8 @@ class AuthenticationSessionService
         $session = AuthenticationSession::where('persistent_token_hash', hash('sha256', $token))
             ->where('actor_id', $request->user()->id)->where('keep_signed_in', true)->whereNull('logged_out_at')->first();
         if (!$session) return false;
-        $updated = AuthenticationSession::whereKey($session->id)->whereNull('logged_out_at')->update([
-            'session_hash'=>hash('sha256', $request->session()->getId()),
-            'last_activity_at'=>now('UTC'), 'expires_at'=>now('UTC')->addMinutes((int)config('session.lifetime',120)),
-        ]);
-        if (!$updated) return false;
+        // Keep a stable device identity even if multiple tabs restore at once.
+        $request->session()->put('authentication_session_id', $session->id);
         $request->session()->put('keep_signed_in', true);
         return true;
     }
@@ -45,7 +42,10 @@ class AuthenticationSessionService
         return DB::transaction(function () use ($request, $actor, $newLogin) {
             $hash = hash('sha256', $request->session()->getId());
             $existing = AuthenticationSession::where('session_hash', $hash)->first();
-            if ($existing) return $existing;
+            if ($existing) {
+                $request->session()->put('authentication_session_id', $existing->id);
+                return $existing;
+            }
             $lastActivity = $newLogin ? now('UTC') : Carbon::createFromTimestamp((int)$request->session()->get('last_activity_at', now()->timestamp), 'UTC');
             $keep = (bool) $request->session()->get('keep_signed_in', false);
             $persistentToken = $newLogin && $keep ? Str::random(64) : null;
@@ -57,6 +57,7 @@ class AuthenticationSessionService
                 'last_activity_at'=>$lastActivity, 'expires_at'=>$lastActivity->copy()->addMinutes((int)config('session.lifetime',120)),
                 'keep_signed_in'=>$keep, 'persistent_token_hash'=>$persistentToken ? hash('sha256', $persistentToken) : null,
             ]);
+            $request->session()->put('authentication_session_id', $session->id);
             if ($persistentToken) Cookie::queue(Cookie::forever(self::PERSISTENT_COOKIE, $persistentToken,
                 config('session.path', '/'), config('session.domain'),
                 config('session.secure'), true, false, config('session.same_site', 'lax')));
@@ -70,7 +71,10 @@ class AuthenticationSessionService
     {
         if (!$this->available()) return true;
         $hash = hash('sha256', $request->session()->getId());
-        $session = AuthenticationSession::where('session_hash', $hash)->first();
+        $trackedId = $request->session()->get('authentication_session_id');
+        $session = $trackedId
+            ? AuthenticationSession::whereKey($trackedId)->where('actor_id', $request->user()->id)->first()
+            : AuthenticationSession::where('session_hash', $hash)->first();
         if (!$session) $session = $this->start($request, $request->user(), false);
         if ($session->logged_out_at) return false;
         // Conditional write prevents a concurrent logout from being resurrected,
@@ -84,7 +88,9 @@ class AuthenticationSessionService
     public function endCurrent(Request $request, string $reason): void
     {
         if (!$this->available() || !$request->user()) return;
-        $session = $this->start($request, $request->user(), false);
+        $trackedId = $request->session()->get('authentication_session_id');
+        $session = $trackedId ? AuthenticationSession::whereKey($trackedId)->where('actor_id', $request->user()->id)->first() : null;
+        $session ??= $this->start($request, $request->user(), false);
         $this->end($session->id, $reason, $request);
     }
 
