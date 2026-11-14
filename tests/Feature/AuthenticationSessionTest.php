@@ -7,6 +7,7 @@ use App\Services\{AuthenticationSessionService, DeviceInfo};
 use Illuminate\Http\Request;
 use Illuminate\Session\{ArraySessionHandler, Store};
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use Tests\TestCase;
 
 class AuthenticationSessionTest extends TestCase
@@ -24,6 +25,7 @@ class AuthenticationSessionTest extends TestCase
             '2026_08_18_000002_create_applications_and_roles_tables.php',
             '2026_10_25_000001_create_activity_logs_table.php',
             '2026_10_25_000002_create_authentication_sessions_table.php',
+            '2026_11_14_000001_add_persistent_authentication_sessions.php',
         ] as $file) (require database_path('migrations/'.$file))->up();
         $application = DB::table('applications')->insertGetId(['code'=>'ACCOUNTING','name'=>'Accounting']);
         $role = DB::table('roles')->insertGetId(['application_id'=>$application,'code'=>'IT','name'=>'IT']);
@@ -71,6 +73,67 @@ class AuthenticationSessionTest extends TestCase
         $this->assertSame(64,strlen($session->getRawOriginal('session_hash')));
         $this->assertStringNotContainsString('login-secret',$log->toJson());
         $this->assertStringNotContainsString($session->getRawOriginal('session_hash'),$log->toJson());
+    }
+
+    public function test_checked_login_survives_inactivity_and_scheduler_until_manual_logout(): void
+    {
+        $response = $this->post(route('login.store'), ['email'=>$this->user->email, 'password'=>'login-secret', 'remember'=>1]);
+        $response->assertRedirect(route('dashboard'))->assertSessionHas('keep_signed_in', true);
+        $response->assertCookie(AuthenticationSessionService::PERSISTENT_COOKIE);
+        $device = AuthenticationSession::firstOrFail();
+        $this->assertTrue($device->keep_signed_in);
+        $this->assertNotNull($device->persistent_token_hash);
+        $this->assertStringNotContainsString($device->persistent_token_hash, ActivityLog::where('action','login')->firstOrFail()->toJson());
+        $this->withCookie(config('session.cookie'), session()->getId());
+        $this->travel(3)->hours();
+        $this->assertSame(0, app(AuthenticationSessionService::class)->expireDue());
+        $this->withCredentials()->postJson(route('session.activity'))->assertNoContent();
+        $this->assertAuthenticated();
+        $this->withCredentials()->postJson(route('logout'), ['reason'=>'idle_timeout'])->assertNoContent();
+        $this->assertAuthenticated();
+        $this->assertNull($device->fresh()->logged_out_at);
+        $this->post(route('logout'))->assertRedirect(route('login'))->assertCookieExpired(AuthenticationSessionService::PERSISTENT_COOKIE);
+        $this->assertGuest();
+        $this->assertSame('manual', $device->fresh()->logout_reason);
+    }
+
+    public function test_remember_cookie_restores_the_same_device_and_logout_prevents_replay(): void
+    {
+        $response = $this->post(route('login.store'), ['email'=>$this->user->email, 'password'=>'login-secret', 'remember'=>1]);
+        $recallerName = Auth::guard()->getRecallerName();
+        $recaller = $response->getCookie($recallerName)->getValue();
+        $persistent = $response->getCookie(AuthenticationSessionService::PERSISTENT_COOKIE)->getValue();
+        $device = AuthenticationSession::firstOrFail();
+        $this->travel(3)->days();
+        session()->flush();
+        Auth::forgetGuards();
+        $this->withCookies([$recallerName=>$recaller, AuthenticationSessionService::PERSISTENT_COOKIE=>$persistent]);
+        $this->withCredentials()->getJson(route('session.activity'))->assertOk()->assertJsonStructure(['csrf_token'])->assertSessionHas('keep_signed_in', true);
+        $this->assertAuthenticatedAs($this->user);
+        $this->assertSame(1, AuthenticationSession::count());
+        $this->assertNull($device->fresh()->logged_out_at);
+        $this->withCookie(config('session.cookie'), session()->getId());
+        $this->post(route('logout'))->assertRedirect(route('login'));
+        session()->flush();
+        Auth::forgetGuards();
+        $this->withCookies([$recallerName=>$recaller, AuthenticationSessionService::PERSISTENT_COOKIE=>$persistent]);
+        $this->withCredentials()->getJson(route('session.activity'))->assertUnauthorized();
+        $this->assertGuest();
+        $this->assertSame(1, AuthenticationSession::count());
+    }
+
+    public function test_persistent_device_does_not_prevent_other_devices_from_timing_out(): void
+    {
+        $this->post(route('login.store'), ['email'=>$this->user->email, 'password'=>'login-secret', 'remember'=>1])->assertSessionHasNoErrors();
+        $persistent = AuthenticationSession::firstOrFail();
+        $request = Request::create('/session/activity','POST');
+        $store = new Store('normal-device',new ArraySessionHandler(120)); $store->start();
+        $request->setLaravelSession($store); $request->setUserResolver(fn () => $this->user);
+        $normal = app(AuthenticationSessionService::class)->start($request, $this->user);
+        $this->travel(3)->hours();
+        $this->assertSame(1, app(AuthenticationSessionService::class)->expireDue());
+        $this->assertNull($persistent->fresh()->logged_out_at);
+        $this->assertSame('idle_timeout', $normal->fresh()->logout_reason);
     }
 
     public function test_failed_login_is_not_recorded_as_successful_login(): void

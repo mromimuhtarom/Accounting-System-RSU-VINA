@@ -23,6 +23,10 @@
         <form method="POST" action="{{ route('login.store') }}">@csrf
             <div class="field"><label>Email</label><input type="email" name="email" value="{{ old('email') }}" placeholder="nama@rumahsakit.com" required autofocus></div>
             <div class="field"><label>Password</label><input type="password" name="password" placeholder="Masukkan password" required></div>
+            <div style="margin:16px 0">
+                <label for="remember-login" style="display:flex;align-items:center;gap:10px;cursor:pointer"><input id="remember-login" type="checkbox" name="remember" value="1" @checked(old('remember')) style="width:18px;height:18px;margin:0">Tetap masuk sampai saya logout</label>
+                <small class="muted">Tanpa centang, sesi berakhir setelah 2 jam tidak ada aktivitas.</small>
+            </div>
             <button class="btn primary login-submit" type="submit">Login</button>
         </form>
         <div class="login-foot">© {{ date('Y') }} {{ config('accounting.hospital_name','RS. Vina Estetica') }} · Accounting System</div>

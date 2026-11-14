@@ -63,7 +63,9 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware('auth')->group(function () {
-    Route::post('/session/activity', fn () => response()->noContent())->name('session.activity');
+    Route::match(['get', 'post'], '/session/activity', fn (\Illuminate\Http\Request $request) => $request->isMethod('GET')
+        ? response()->json(['csrf_token'=>csrf_token()])->header('Cache-Control', 'private, no-store')
+        : response()->noContent())->name('session.activity');
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 

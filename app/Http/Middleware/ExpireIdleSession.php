@@ -15,13 +15,17 @@ class ExpireIdleSession
         // Global expiry logging is handled by sessions:expire-log (scheduled every
         // minute), rather than making each cashier request sweep every user's sessions.
         if (Auth::check()) {
+            $restoreFailed = Auth::viaRemember() && !$sessions->restorePersistent($request);
+            $keepSignedIn = (bool) $request->session()->get('keep_signed_in', false);
             $lastActivity = $request->session()->get('last_activity_at');
             $timeout = (int) config('session.lifetime', 120) * 60;
 
-            $expired = Auth::viaRemember() || ($lastActivity !== null && now()->timestamp - (int) $lastActivity >= $timeout);
+            $inactive = $request->user()->getAttribute('is_active') === false;
+            $expired = $inactive || $restoreFailed || (!$keepSignedIn && $lastActivity !== null && now()->timestamp - (int) $lastActivity >= $timeout);
             if (!$expired && !$request->routeIs('logout')) $expired = !$sessions->touch($request);
             if ($expired) {
-                $sessions->endCurrent($request, Auth::viaRemember() ? 'remember_expired' : 'idle_timeout');
+                if (!$restoreFailed) $sessions->endCurrent($request, $inactive ? 'account_disabled' : (Auth::viaRemember() ? 'remember_expired' : 'idle_timeout'));
+                $sessions->forgetPersistentCookie();
                 // Expire this browser session without revoking other devices' login tokens.
                 Auth::logoutCurrentDevice();
                 $request->session()->invalidate();

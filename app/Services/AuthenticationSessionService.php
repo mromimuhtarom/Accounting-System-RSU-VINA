@@ -5,10 +5,34 @@ namespace App\Services;
 use App\Models\{ActivityLog, AuthenticationSession, User};
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\{Cookie, DB};
+use Illuminate\Support\Str;
 
 class AuthenticationSessionService
 {
+    public const PERSISTENT_COOKIE = 'rsuve_keep_signed_in';
+
+    public function forgetPersistentCookie(): void
+    {
+        Cookie::queue(Cookie::forget(self::PERSISTENT_COOKIE, config('session.path', '/'), config('session.domain')));
+    }
+
+    public function restorePersistent(Request $request): bool
+    {
+        if (!$this->available()) return false;
+        $token = $request->cookie(self::PERSISTENT_COOKIE);
+        if (!is_string($token) || !preg_match('/^[a-zA-Z0-9]{64}$/D', $token)) return false;
+        $session = AuthenticationSession::where('persistent_token_hash', hash('sha256', $token))
+            ->where('actor_id', $request->user()->id)->where('keep_signed_in', true)->whereNull('logged_out_at')->first();
+        if (!$session) return false;
+        $updated = AuthenticationSession::whereKey($session->id)->whereNull('logged_out_at')->update([
+            'session_hash'=>hash('sha256', $request->session()->getId()),
+            'last_activity_at'=>now('UTC'), 'expires_at'=>now('UTC')->addMinutes((int)config('session.lifetime',120)),
+        ]);
+        if (!$updated) return false;
+        $request->session()->put('keep_signed_in', true);
+        return true;
+    }
     private function available(): bool
     {
         $lookup = app(RequestDatabaseLookup::class);
@@ -23,13 +47,19 @@ class AuthenticationSessionService
             $existing = AuthenticationSession::where('session_hash', $hash)->first();
             if ($existing) return $existing;
             $lastActivity = $newLogin ? now('UTC') : Carbon::createFromTimestamp((int)$request->session()->get('last_activity_at', now()->timestamp), 'UTC');
+            $keep = (bool) $request->session()->get('keep_signed_in', false);
+            $persistentToken = $newLogin && $keep ? Str::random(64) : null;
             $session = AuthenticationSession::firstOrCreate(['session_hash'=>$hash], [
                 'actor_id'=>$actor->id, 'actor_name'=>$actor->name,
                 'actor_email'=>$actor->email, 'actor_roles'=>$actor->loadMissing('roles')->roles->pluck('code')->implode(', '),
                 'device_name'=>app(DeviceInfo::class)->name($request), 'user_agent'=>mb_substr($request->userAgent() ?? '', 0, 4096),
                 'ip_address'=>$request->ip(), 'logged_in_at'=>$newLogin ? now('UTC') : null,
                 'last_activity_at'=>$lastActivity, 'expires_at'=>$lastActivity->copy()->addMinutes((int)config('session.lifetime',120)),
+                'keep_signed_in'=>$keep, 'persistent_token_hash'=>$persistentToken ? hash('sha256', $persistentToken) : null,
             ]);
+            if ($persistentToken) Cookie::queue(Cookie::forever(self::PERSISTENT_COOKIE, $persistentToken,
+                config('session.path', '/'), config('session.domain'),
+                config('session.secure'), true, false, config('session.same_site', 'lax')));
             // Existing sessions are enrolled without inventing an earlier login timestamp.
             if ($newLogin && $session->wasRecentlyCreated) $this->writeLog($session, 'login', null, $this->values($session), now('UTC'), $request);
             return $session;
@@ -63,6 +93,7 @@ class AuthenticationSessionService
         return DB::transaction(function () use ($id, $reason, $request) {
             $session = AuthenticationSession::whereKey($id)->lockForUpdate()->firstOrFail();
             if ($session->logged_out_at) return false;
+            if ($reason === 'idle_timeout' && $session->keep_signed_in) return false;
             $before = $this->values($session);
             $at = $reason === 'idle_timeout' && $session->expires_at->lte(now('UTC')) ? $session->expires_at : now('UTC');
             $session->update(['logged_out_at'=>$at, 'logout_reason'=>$reason]);
@@ -75,12 +106,12 @@ class AuthenticationSessionService
     {
         if (!$this->available()) return 0;
         $count = 0;
-        AuthenticationSession::whereNull('logged_out_at')->where('expires_at','<=',now('UTC'))->select('id')->chunkById(100, function ($rows) use (&$count) {
+        AuthenticationSession::whereNull('logged_out_at')->where('keep_signed_in', false)->where('expires_at','<=',now('UTC'))->select('id')->chunkById(100, function ($rows) use (&$count) {
             foreach ($rows as $row) {
                 // Re-check under lock: activity may have extended the session since the query ran.
                 DB::transaction(function () use ($row, &$count) {
                     $current = AuthenticationSession::whereKey($row->id)->lockForUpdate()->firstOrFail();
-                    if (!$current->logged_out_at && $current->expires_at->lte(now('UTC'))) $count += (int)$this->end($current->id, 'idle_timeout');
+                    if (!$current->logged_out_at && !$current->keep_signed_in && $current->expires_at->lte(now('UTC'))) $count += (int)$this->end($current->id, 'idle_timeout');
                 });
             }
         });
@@ -93,11 +124,11 @@ class AuthenticationSessionService
         return [
             'session_status'=>$session->logged_out_at ? 'Sudah logout' : 'Login aktif',
             'logged_in_at'=>$session->logged_in_at ? $date($session->logged_in_at) : 'Login sebelum pencatatan perangkat diaktifkan',
-            'last_activity_at'=>$date($session->last_activity_at), 'expires_at'=>$date($session->expires_at),
+            'last_activity_at'=>$date($session->last_activity_at), 'expires_at'=>$session->keep_signed_in ? 'Tetap masuk sampai logout' : $date($session->expires_at),
             'logged_out_at'=>$session->logged_out_at ? $date($session->logged_out_at) : null,
             'logout_reason'=>match ($session->logout_reason) {
                 'idle_timeout'=>'Otomatis: 2 jam tanpa aktivitas', 'manual'=>'Tombol logout',
-                'remember_expired'=>'Otomatis: sesi tersimpan sudah tidak berlaku', default=>null,
+                'remember_expired'=>'Otomatis: sesi tersimpan sudah tidak berlaku', 'account_disabled'=>'Akun dinonaktifkan', default=>null,
             },
             'device_name'=>$session->device_name, 'login_ip'=>$session->ip_address,
         ];

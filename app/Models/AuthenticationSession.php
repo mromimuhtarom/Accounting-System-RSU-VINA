@@ -8,10 +8,10 @@ class AuthenticationSession extends Model
 {
     public $timestamps = false;
     protected $guarded = [];
-    protected $hidden = ['session_hash'];
+    protected $hidden = ['session_hash', 'persistent_token_hash'];
 
     protected function casts(): array
     {
-        return ['logged_in_at'=>'datetime', 'last_activity_at'=>'datetime', 'expires_at'=>'datetime', 'logged_out_at'=>'datetime'];
+        return ['logged_in_at'=>'datetime', 'last_activity_at'=>'datetime', 'expires_at'=>'datetime', 'logged_out_at'=>'datetime', 'keep_signed_in'=>'boolean'];
     }
 }

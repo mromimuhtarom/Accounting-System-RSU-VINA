@@ -3,11 +3,13 @@
     const settings = document.currentScript.dataset;
     const timeout = Number(settings.timeout);
     const storageKey = settings.activityKey;
-    const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+    const keepSignedIn = settings.keepSignedIn === '1';
+    let csrf = document.querySelector('meta[name="csrf-token"]')?.content;
     let lastActivity = Date.now();
     let lastSent = lastActivity;
     let lastStored = 0;
     let inFlight = false;
+    let activityRequest = null;
     let expired = false;
 
     function readActivity() {
@@ -30,25 +32,41 @@
         window.location.replace(settings.loginUrl);
     }
 
-    async function sendActivity() {
-        if (expired || inFlight || lastActivity <= lastSent) return;
+    function sendActivity() {
+        if (inFlight) return activityRequest;
+        if (expired || (!keepSignedIn && lastActivity <= lastSent)) return Promise.resolve(false);
+        activityRequest = performActivity();
+        return activityRequest;
+    }
+
+    async function performActivity() {
         inFlight = true;
-        const sentAt = lastActivity;
+        const sentAt = keepSignedIn ? Date.now() : lastActivity;
         try {
-            const response = await fetch(settings.activityUrl, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' } });
+            const response = await fetch(settings.activityUrl, { method: keepSignedIn ? 'GET' : 'POST', credentials: 'same-origin', cache:'no-store', headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' } });
             if ([401, 419].includes(response.status) || response.redirected) {
                 await expire();
             } else if (response.ok) {
+                if (keepSignedIn) {
+                    const data = await response.json();
+                    if (data.csrf_token) {
+                        csrf = data.csrf_token;
+                        document.querySelector('meta[name="csrf-token"]')?.setAttribute('content', csrf);
+                        document.querySelectorAll('input[name="_token"]').forEach(input => { input.value = csrf; });
+                    }
+                }
                 lastSent = sentAt;
+                return true;
             }
         } catch (_) {
             // Retry only while there has actually been activity; never keep an idle session alive.
         } finally { inFlight = false; }
+        return false;
     }
 
     function check() {
         readActivity();
-        if (Date.now() - lastActivity >= timeout) { expire(); return false; }
+        if (!keepSignedIn && Date.now() - lastActivity >= timeout) { expire(); return false; }
         return true;
     }
 
@@ -69,7 +87,25 @@
     ['pointerdown', 'pointermove', 'keydown', 'scroll', 'touchstart', 'input'].forEach((name) => {
         document.addEventListener(name, activity, { passive: true, capture: true });
     });
-    document.addEventListener('submit', (event) => { if (!check()) event.preventDefault(); }, true);
+    const replaying = new WeakSet();
+    document.addEventListener('submit', (event) => {
+        if (!check()) { event.preventDefault(); return; }
+        if (!keepSignedIn || replaying.has(event.target) || Date.now() - lastSent < 60000) return;
+        // A sleeping tab may outlive the normal Laravel session. Restore it and
+        // renew form CSRF tokens before sending the user's original submission.
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        const form = event.target;
+        const submitter = event.submitter;
+        sendActivity().then(ok => {
+            if (!ok || expired) {
+                if (!expired) window.alert('Sesi belum berhasil diperbarui. Periksa koneksi, lalu klik simpan kembali.');
+                return;
+            }
+            replaying.add(form);
+            try { form.requestSubmit(submitter); } finally { replaying.delete(form); }
+        });
+    }, true);
     document.addEventListener('visibilitychange', () => { if (!document.hidden && check()) sendActivity(); });
     window.addEventListener('pageshow', check);
     window.addEventListener('storage', (event) => {

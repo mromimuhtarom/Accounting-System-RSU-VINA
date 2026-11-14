@@ -23,6 +23,7 @@ class ActivityLogTest extends TestCase
             '2026_08_18_000004_create_master_accounting_tables.php',
             '2026_10_25_000001_create_activity_logs_table.php',
             '2026_10_25_000002_create_authentication_sessions_table.php',
+            '2026_11_14_000001_add_persistent_authentication_sessions.php',
         ] as $file) (require database_path('migrations/'.$file))->up();
         $application = DB::table('applications')->insertGetId(['code'=>'ACCOUNTING','name'=>'Accounting']);
         $this->itRole = DB::table('roles')->insertGetId(['application_id'=>$application,'code'=>'IT','name'=>'IT']);
