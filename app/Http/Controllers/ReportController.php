@@ -22,12 +22,12 @@ class ReportController extends Controller
         $start = CarbonImmutable::create($year, $month, 1)->startOfMonth();
         $end = $start->endOfMonth();
 
-        $receipts = Receipt::with(['account', 'serviceUnit', 'guarantor.financialGroup'])
+        $receipts = Receipt::with(['account', 'serviceUnit', 'guarantor'])
             ->where('status', 'ACTIVE')
             ->whereBetween('transaction_date', [$start->toDateString(), $end->toDateString()])
             ->get();
 
-        $expenses = Expense::with(['category.financialGroup'])
+        $expenses = Expense::with('category')
             ->where('status', 'ACTIVE')
             ->whereBetween('expense_date', [$start->toDateString(), $end->toDateString()])
             ->get();
@@ -79,12 +79,12 @@ class ReportController extends Controller
         $start = CarbonImmutable::create($year, 1, 1)->startOfYear();
         $end = $start->endOfYear();
 
-        $receipts = Receipt::with(['account', 'serviceUnit', 'guarantor.financialGroup'])
+        $receipts = Receipt::with(['account', 'serviceUnit', 'guarantor'])
             ->where('status', 'ACTIVE')
             ->whereBetween('transaction_date', [$start->toDateString(), $end->toDateString()])
             ->get();
 
-        $expenses = Expense::with(['category.financialGroup'])
+        $expenses = Expense::with('category')
             ->where('status', 'ACTIVE')
             ->whereBetween('expense_date', [$start->toDateString(), $end->toDateString()])
             ->get();
@@ -272,10 +272,9 @@ class ReportController extends Controller
 
     private function buildMonthlyIncome(Collection $groups, Collection $receipts): Collection
     {
-        return $groups->map(function ($group) use ($receipts) {
-            $groupRows = $receipts->filter(
-                fn ($receipt) => $this->receiptBelongsToIncomeGroup($receipt, $group)
-            );
+        $receiptsByGroup = $receipts->groupBy($this->receiptIncomeGroupCode(...));
+        return $groups->map(function ($group) use ($receiptsByGroup) {
+            $groupRows = $receiptsByGroup->get($group->code, collect());
 
             $details = $groupRows
                 ->groupBy(function ($receipt) use ($group) {
@@ -311,12 +310,9 @@ class ReportController extends Controller
 
     private function buildMonthlyExpense(Collection $groups, Collection $expenses): Collection
     {
-        return $groups->map(function ($group) use ($expenses, $groups) {
-            $groupRows = $expenses->filter(
-                fn ($expense) => $group->id === -1
-                    ? $expense->expense_type === 'REFERRAL' && !$groups->where('id', '!=', -1)->contains('id', $expense->category?->financial_group_id)
-                    : (int) ($expense->category?->financial_group_id ?? 0) === (int) $group->id
-            );
+        $expensesByGroup = $this->expensesByGroup($groups, $expenses);
+        return $groups->map(function ($group) use ($expensesByGroup) {
+            $groupRows = $expensesByGroup->get((int) $group->id, collect());
 
             $details = $groupRows
                 ->groupBy(fn ($expense) => $expense->category?->name ?? 'Tanpa Kategori')
@@ -336,10 +332,9 @@ class ReportController extends Controller
 
     private function buildYearlyIncome(Collection $groups, Collection $receipts): Collection
     {
-        return $groups->map(function ($group) use ($receipts) {
-            $groupRows = $receipts->filter(
-                fn ($receipt) => $this->receiptBelongsToIncomeGroup($receipt, $group)
-            );
+        $receiptsByGroup = $receipts->groupBy($this->receiptIncomeGroupCode(...));
+        return $groups->map(function ($group) use ($receiptsByGroup) {
+            $groupRows = $receiptsByGroup->get($group->code, collect());
 
             $details = $groupRows
                 ->groupBy(function ($receipt) use ($group) {
@@ -381,12 +376,9 @@ class ReportController extends Controller
 
     private function buildYearlyExpense(Collection $groups, Collection $expenses): Collection
     {
-        return $groups->map(function ($group) use ($expenses, $groups) {
-            $groupRows = $expenses->filter(
-                fn ($expense) => $group->id === -1
-                    ? $expense->expense_type === 'REFERRAL' && !$groups->where('id', '!=', -1)->contains('id', $expense->category?->financial_group_id)
-                    : (int) ($expense->category?->financial_group_id ?? 0) === (int) $group->id
-            );
+        $expensesByGroup = $this->expensesByGroup($groups, $expenses);
+        return $groups->map(function ($group) use ($expensesByGroup) {
+            $groupRows = $expensesByGroup->get((int) $group->id, collect());
 
             $details = $groupRows
                 ->groupBy(fn ($expense) => $expense->category?->name ?? 'Tanpa Kategori')
@@ -419,6 +411,15 @@ class ReportController extends Controller
         });
     }
 
+    private function expensesByGroup(Collection $groups, Collection $expenses): Collection
+    {
+        $groupIds = $groups->where('id', '!=', -1)->keyBy('id');
+        return $expenses->groupBy(function ($expense) use ($groupIds) {
+            $id = (int) ($expense->category?->financial_group_id ?? 0);
+            return $expense->expense_type === 'REFERRAL' && !$groupIds->has($id) ? -1 : $id;
+        });
+    }
+
     private function sumGroupMonths(Collection $groups): array
     {
         $months = array_fill(1, 12, 0.0);
@@ -432,16 +433,21 @@ class ReportController extends Controller
 
     private function receiptBelongsToIncomeGroup(Receipt $receipt, object $group): bool
     {
+        return $group->code === $this->receiptIncomeGroupCode($receipt);
+    }
+
+    private function receiptIncomeGroupCode(Receipt $receipt): string
+    {
         // Prioritaskan jenis PENJAMIN, karena data historis BPJS punya COA
         // Pendapatan Rawat Inap/Poli dan sebelumnya salah masuk REV_SERVICE.
         $guarantor = $receipt->guarantor;
         if ($guarantor && ($guarantor->is_bpjs || $guarantor->category === 'BPJS')) {
-            return $group->code === 'REV_BPJS';
+            return 'REV_BPJS';
         }
         if ($guarantor && in_array($guarantor->category, ['PRIVATE_INSURANCE','CORPORATE','OTHER'], true)) {
-            return $group->code === 'REV_GUARANTOR';
+            return 'REV_GUARANTOR';
         }
-        return $group->code === 'REV_SERVICE';
+        return 'REV_SERVICE';
     }
 
     private function incomeDetailLabel(Receipt $receipt, string $groupCode): string

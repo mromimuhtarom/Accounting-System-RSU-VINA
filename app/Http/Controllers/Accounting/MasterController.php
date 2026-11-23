@@ -11,6 +11,8 @@ use App\Models\Guarantor;
 use App\Models\ServiceUnit;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class MasterController extends Controller
@@ -40,6 +42,10 @@ class MasterController extends Controller
         }
 
         $query = $model::query()->orderBy($sortColumn);
+        $hasFinancialGroup = in_array($type, ['guarantors', 'expense-categories'], true);
+        if ($hasFinancialGroup) {
+            $query->with('financialGroup');
+        }
         $search = '';
         if ($type === 'accounts') {
             $search = trim($request->string('q')->toString());
@@ -55,14 +61,9 @@ class MasterController extends Controller
         }
 
         $items = $query->paginate(10)->withQueryString();
-        $lockedCoaIds = [];
-        if ($type === 'accounts') {
-            foreach ($items as $account) {
-                if ($this->coaDeleteDependencies($account) !== []) {
-                    $lockedCoaIds[] = (int) $account->id;
-                }
-            }
-        }
+        $lockedCoaIds = $type === 'accounts'
+            ? array_keys($this->coaDeleteDependencies($items->getCollection()->modelKeys()))
+            : [];
 
         return view('accounting.master.index', [
             'type' => $type,
@@ -70,11 +71,13 @@ class MasterController extends Controller
             'search' => $search,
             'editingItem' => $editingItem,
             'lockedCoaIds' => $lockedCoaIds,
-            'accounts' => ChartAccount::orderBy('code')->get(),
-            'financialGroups' => FinancialGroup::orderBy('type')
+            'accounts' => in_array($type, ['accounts', 'units', 'cash-banks', 'expense-categories'], true)
+                ? ChartAccount::orderBy('code')->get(['id', 'code', 'name', 'type'])
+                : collect(),
+            'financialGroups' => $hasFinancialGroup ? FinancialGroup::orderBy('type')
                 ->orderBy('sort_order')
                 ->orderBy('name')
-                ->get(),
+                ->get() : collect(),
         ]);
     }
 
@@ -122,10 +125,9 @@ class MasterController extends Controller
         $class = $this->model($type);
         $item = $class::findOrFail($id);
 
-        $dependencies = $this->dependencies($type, $item);
-        if ($type === 'accounts') {
-            $dependencies = array_values(array_unique(array_merge($dependencies, $this->coaDeleteDependencies($item))));
-        }
+        $dependencies = $type === 'accounts'
+            ? ($this->coaDeleteDependencies([$item->id])[$item->id] ?? [])
+            : $this->dependencies($type, $item);
 
         if ($dependencies !== []) {
             return back()->with(
@@ -155,15 +157,6 @@ class MasterController extends Controller
         $used = [];
 
         $checks = match ($type) {
-            'accounts' => [
-                'COA turunan' => fn () => $item->children()->exists(),
-                'Unit Pelayanan' => fn () => $item->serviceUnits()->exists(),
-                'Kas & Bank' => fn () => $item->cashBankAccounts()->exists(),
-                'Kategori Pengeluaran' => fn () => $item->expenseCategories()->exists(),
-                'Pemasukan' => fn () => $item->receipts()->exists(),
-                'Pengeluaran' => fn () => $item->expenses()->exists(),
-                'Jurnal' => fn () => $item->journalLines()->exists(),
-            ],
             'units' => [
                 'Penerimaan' => fn () => $item->receipts()->exists(),
             ],
@@ -194,45 +187,48 @@ class MasterController extends Controller
     }
 
     /** Guard hard deletion, including historical/cancelled transactions and legacy income_code. */
-    private function coaDeleteDependencies(object $account): array
+    private function coaDeleteDependencies(array $accountIds): array
     {
-        $id = (int) $account->id;
-        $code = (string) $account->code;
+        if ($accountIds === []) {
+            return [];
+        }
+
         $references = [
             ['receipts', 'chart_account_id', 'Penerimaan'],
-            ['receipts', 'income_code', 'Kode COA historis pada Penerimaan', $code],
+            ['receipts', 'income_code', 'Kode COA historis pada Penerimaan', 'code'],
             ['expenses', 'chart_account_id', 'Pengeluaran'],
             ['journal_entry_lines', 'chart_account_id', 'Jurnal yang sudah ada'],
             ['service_units', 'revenue_account_id', 'Unit Pelayanan'],
             ['cash_bank_accounts', 'chart_account_id', 'Kas dan Bank'],
             ['expense_categories', 'expense_account_id', 'Kategori Pengeluaran'],
             ['chart_accounts', 'parent_id', 'COA Turunan'],
+            ['insurance_monthly_claims', 'chart_account_id', 'Klaim dan Piutang Asuransi'],
+            ['bpjs_claims', 'chart_account_id', 'Klaim BPJS lama'],
         ];
-        $dependencies = [];
-        foreach ($references as $ref) {
+        $query = DB::table('chart_accounts as coa')->select('coa.id')->whereIn('coa.id', $accountIds);
+        $labels = [];
+        $columns = [];
+        foreach ($references as $index => $ref) {
             [$table, $column, $label] = $ref;
-            if (!\Illuminate\Support\Facades\Schema::hasTable($table)
-                || !\Illuminate\Support\Facades\Schema::hasColumn($table, $column)) {
+            $columns[$table] ??= array_map(strtolower(...), Schema::getColumnListing($table));
+            if (!in_array($column, $columns[$table], true)) {
                 continue;
             }
-            $value = array_key_exists(3, $ref) ? $ref[3] : $id;
-            if (\Illuminate\Support\Facades\DB::table($table)->where($column, $value)->exists()) {
-                $dependencies[] = $label;
+            $alias = 'dependency_'.$index;
+            $reference = DB::table($table)->selectRaw('1')->whereColumn($table.'.'.$column, 'coa.'.($ref[3] ?? 'id'));
+            $query->selectRaw('EXISTS ('.$reference->toSql().') AS '.$alias);
+            $labels[$alias] = $label;
+        }
+
+        $dependencies = [];
+        foreach ($query->get() as $account) {
+            foreach ($labels as $alias => $label) {
+                if ($account->{$alias}) {
+                    $dependencies[$account->id][] = $label;
+                }
             }
         }
-        // The monthly insurance claim ledger references guarantors, NOT chart_accounts.
-        // Do not invent a COA/claim link; when present, guard the actual direct reference.
-        if (\Illuminate\Support\Facades\Schema::hasTable('insurance_monthly_claims')
-            && \Illuminate\Support\Facades\Schema::hasColumn('insurance_monthly_claims', 'chart_account_id')
-            && \Illuminate\Support\Facades\DB::table('insurance_monthly_claims')->where('chart_account_id', $id)->exists()) {
-            $dependencies[] = 'Klaim dan Piutang Asuransi';
-        }
-        if (\Illuminate\Support\Facades\Schema::hasTable('bpjs_claims')
-            && \Illuminate\Support\Facades\Schema::hasColumn('bpjs_claims', 'chart_account_id')
-            && \Illuminate\Support\Facades\DB::table('bpjs_claims')->where('chart_account_id', $id)->exists()) {
-            $dependencies[] = 'Klaim BPJS lama';
-        }
-        return array_values(array_unique($dependencies));
+        return $dependencies;
     }
 
     private function ensureCanManage(Request $request, string $type): void

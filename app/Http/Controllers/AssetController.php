@@ -49,10 +49,19 @@ class AssetController extends Controller
         Gate::authorize('viewAny', Asset::class);
         $q = app(AssetInventoryQuery::class)->build($request)->with('capitalization');
         $official = AssetCapitalization::where('status', 'POSTED')->whereHas('asset', fn ($s) => $s->where('status', 'ACTIVE'));
-        $cost = (float) (clone $official)->sum('cost');
-        $acc = (float) (clone $official)->sum('opening_accumulated');
-        $dep = DB::table('asset_events')->join('assets', 'assets.id', '=', 'asset_events.asset_id')->whereNull('assets.deleted_at')->where('assets.status', 'ACTIVE')->where('type', 'DEPRECIATION')->select('data')->get()->sum(fn ($e) => (float) (json_decode($e->data, true)['amount'] ?? 0));
-        $stats = ['Inventaris terverifikasi' => Asset::where('inventory_type', '!=', 'FACILITY')->where('status', 'ACTIVE')->count(), 'Aktiva tetap resmi' => (clone $official)->count(), 'Harga perolehan tervalidasi' => $cost, 'Akumulasi penyusutan' => $acc + $dep, 'Nilai buku' => $cost - $acc - $dep, 'Belum diverifikasi' => AssetStagingRow::whereIn('status', ['READY', 'REVIEW', 'DUPLICATE', 'FAILED'])->count(), 'Inventaris rusak' => Asset::where('status', 'ACTIVE')->where('condition', 'BROKEN')->count(), 'Fasilitas / kapasitas' => Asset::where('inventory_type', 'FACILITY')->count()];
+        $officialTotals = $official->selectRaw('COUNT(*) AS records, SUM(cost) AS cost, SUM(opening_accumulated) AS accumulated')->first();
+        $cost = (float) $officialTotals->cost;
+        $acc = (float) $officialTotals->accumulated;
+        $dep = DB::table('asset_events')->join('assets', 'assets.id', '=', 'asset_events.asset_id')
+            ->whereNull('assets.deleted_at')->where('assets.status', 'ACTIVE')->where('asset_events.type', 'DEPRECIATION')
+            ->select('asset_events.id', 'asset_events.data')->lazyById(1000, 'asset_events.id', 'id')
+            ->sum(fn ($event) => (float) (json_decode($event->data, true)['amount'] ?? 0));
+        $inventory = Asset::query()->selectRaw("
+            COUNT(CASE WHEN inventory_type != 'FACILITY' AND status = 'ACTIVE' THEN 1 END) AS verified,
+            COUNT(CASE WHEN status = 'ACTIVE' AND `condition` = 'BROKEN' THEN 1 END) AS broken,
+            COUNT(CASE WHEN inventory_type = 'FACILITY' THEN 1 END) AS facilities
+        ")->first();
+        $stats = ['Inventaris terverifikasi' => (int) $inventory->verified, 'Aktiva tetap resmi' => (int) $officialTotals->records, 'Harga perolehan tervalidasi' => $cost, 'Akumulasi penyusutan' => $acc + $dep, 'Nilai buku' => $cost - $acc - $dep, 'Belum diverifikasi' => AssetStagingRow::whereIn('status', ['READY', 'REVIEW', 'DUPLICATE', 'FAILED'])->count(), 'Inventaris rusak' => (int) $inventory->broken, 'Fasilitas / kapasitas' => (int) $inventory->facilities];
 
         return view('assets.index', ['assets' => $q->latest()->paginate(30)->withQueryString(), 'stats' => $stats,
             'assetReport' => app(AssetReporting::class)->summary(now()->year),

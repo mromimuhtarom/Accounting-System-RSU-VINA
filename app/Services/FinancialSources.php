@@ -8,6 +8,7 @@ use App\Models\Expense;
 use App\Models\InsuranceMonthlyClaim;
 use App\Models\OpeningBalance;
 use App\Models\Receipt;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Schema;
 
 /** Operational sources are reconciliation information, never extra ledger lines. */
@@ -17,17 +18,22 @@ class FinancialSources
     {
         $opening = Schema::hasTable('opening_balances') ? OpeningBalance::where('status', 'POSTED')->first() : null;
         $cutoff = $opening && $opening->balance_date->format('Y-m-d') <= $date ? $opening->balance_date->format('Y-m-d') : null;
+        $end = CarbonImmutable::parse($date)->addDay()->toDateString();
+        $coverageStart = $cutoff ? $opening->balance_date->copy()->addDay()->toDateString() : null;
         $books = [];
         foreach (['receipts' => [Receipt::class, 'transaction_date'], 'expenses' => [Expense::class, 'expense_date']] as $key => [$model, $dateColumn]) {
             $books[$key] = ['count' => 0, 'amount' => 0, 'unposted_count' => 0, 'unposted_amount' => 0, 'unmapped_count' => 0];
             if (! Schema::hasTable($key)) {
                 continue;
             }
-            $q = $model::where('status', 'ACTIVE')->whereDate($dateColumn, '<=', $date);
-            $pending = (clone $q)->when($cutoff, fn ($q) => $q->whereDate($dateColumn, '>', $cutoff))->whereDoesntHave('journal');
-            $books[$key] = ['count' => (clone $q)->count(), 'amount' => LedgerAmounts::cents((clone $q)->sum('amount')),
-                'unposted_count' => (clone $pending)->count(), 'unposted_amount' => LedgerAmounts::cents((clone $pending)->sum('amount')),
-                'unmapped_count' => (clone $pending)->whereNull('cash_bank_account_id')->count()];
+            $q = $model::where('status', 'ACTIVE')->where($dateColumn, '<', $end);
+            $totals = (clone $q)->selectRaw('COUNT(*) AS records, SUM(amount) AS amount')->first();
+            $pending = $q->when($coverageStart, fn ($q) => $q->where($dateColumn, '>=', $coverageStart))->whereDoesntHave('journal')
+                ->selectRaw('COUNT(*) AS records, SUM(amount) AS amount, COUNT(CASE WHEN cash_bank_account_id IS NULL THEN 1 END) AS unmapped')
+                ->first();
+            $books[$key] = ['count' => (int) $totals->records, 'amount' => LedgerAmounts::cents($totals->amount ?? 0),
+                'unposted_count' => (int) $pending->records, 'unposted_amount' => LedgerAmounts::cents($pending->amount ?? 0),
+                'unmapped_count' => (int) $pending->unmapped];
         }
         // Monthly insurance amounts have no dated payment history. They are a CURRENT
         // tracking snapshot, not historical receivables and not an accounting source.
