@@ -8,6 +8,68 @@ use Illuminate\Support\Facades\DB;
 
 class TransactionPerformanceTest extends ExpenseAccessTest
 {
+    public function test_expense_coa_migration_moves_only_expenses_linked_to_the_source_account(): void
+    {
+        $migration = require database_path('migrations/2026_11_23_000003_move_expense_coa_from_5_1012_to_5_1_c.php');
+        $attributes = ['name' => 'Beban', 'type' => 'EXPENSE', 'normal_balance' => 'DEBIT', 'is_active' => true];
+        $source = ChartAccount::create($attributes + ['code' => '5-1012']);
+        $other = ChartAccount::where('code', '5001')->firstOrFail();
+        $category = ExpenseCategory::where('code', 'UMUM')->firstOrFail();
+        $fields = [
+            'expense_date' => '2026-11-20', 'expense_category_id' => $category->id, 'description' => 'Pembayaran',
+            'amount' => 10000, 'payment_method' => 'CASH', 'cash_bank_account_id' => DB::table('cash_bank_accounts')->value('id'),
+            'created_by' => DB::table('users')->value('id'),
+        ];
+        $moved = DB::table('expenses')->insertGetId($fields + ['expense_no' => 'COA-BEBAN-1', 'chart_account_id' => $source->id]);
+        $unchanged = DB::table('expenses')->insertGetId($fields + ['expense_no' => 'COA-BEBAN-2', 'chart_account_id' => $other->id]);
+
+        try {
+            $migration->up();
+            $this->fail('The migration should stop if the destination account is missing.');
+        } catch (\RuntimeException $error) {
+            $this->assertStringContainsString('COA tujuan 5.1.C', $error->getMessage());
+        }
+        $this->assertDatabaseHas('expenses', ['id' => $moved, 'chart_account_id' => $source->id]);
+
+        $target = ChartAccount::create($attributes + ['code' => '5.1.C']);
+        $migration->up();
+        $migration->up();
+
+        $this->assertDatabaseHas('expenses', ['id' => $moved, 'chart_account_id' => $target->id, 'expense_category_id' => $category->id, 'amount' => 10000]);
+        $this->assertDatabaseHas('expenses', ['id' => $unchanged, 'chart_account_id' => $other->id]);
+    }
+
+    public function test_electricity_expense_migration_moves_source_category_and_uses_destination_account(): void
+    {
+        $migration = require database_path('migrations/2026_11_23_000002_move_electricity_expenses_to_5_1_b.php');
+        $oldAccount = ChartAccount::where('type', 'EXPENSE')->firstOrFail();
+        $source = ExpenseCategory::create(['code' => '5-1010', 'name' => 'Listrik Lama', 'expense_account_id' => $oldAccount->id]);
+        $other = ExpenseCategory::where('code', 'UMUM')->firstOrFail();
+        $fields = [
+            'expense_date' => '2026-11-20', 'chart_account_id' => $oldAccount->id, 'description' => 'Pembayaran',
+            'amount' => 10000, 'payment_method' => 'CASH', 'cash_bank_account_id' => DB::table('cash_bank_accounts')->value('id'),
+            'created_by' => DB::table('users')->value('id'),
+        ];
+        $moved = DB::table('expenses')->insertGetId($fields + ['expense_no' => 'LISTRIK-1', 'expense_category_id' => $source->id]);
+        $unchanged = DB::table('expenses')->insertGetId($fields + ['expense_no' => 'LISTRIK-2', 'expense_category_id' => $other->id]);
+
+        try {
+            $migration->up();
+            $this->fail('The migration should stop if the target category is missing.');
+        } catch (\RuntimeException $error) {
+            $this->assertStringContainsString('tujuan 5.1.B', $error->getMessage());
+        }
+        $this->assertDatabaseHas('expenses', ['id' => $moved, 'expense_category_id' => $source->id]);
+
+        $newAccount = ChartAccount::create(['code' => '5102', 'name' => 'Listrik', 'type' => 'EXPENSE', 'normal_balance' => 'DEBIT', 'is_active' => true]);
+        $target = ExpenseCategory::create(['code' => '5.1.B', 'name' => 'Listrik', 'expense_account_id' => $newAccount->id, 'is_active' => true]);
+        $migration->up();
+        $migration->up();
+
+        $this->assertDatabaseHas('expenses', ['id' => $moved, 'expense_category_id' => $target->id, 'chart_account_id' => $newAccount->id, 'amount' => 10000]);
+        $this->assertDatabaseHas('expenses', ['id' => $unchanged, 'expense_category_id' => $other->id, 'chart_account_id' => $oldAccount->id]);
+    }
+
     public function test_expense_category_search_paginates_and_preserves_master_actions(): void
     {
         (require database_path('migrations/2026_08_18_000008_create_financial_groups_table.php'))->up();
