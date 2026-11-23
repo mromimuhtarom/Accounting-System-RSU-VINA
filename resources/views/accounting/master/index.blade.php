@@ -28,9 +28,10 @@
 
 @if($type === 'accounts')
 <div class="card actions">
-    <a class="btn" href="{{ route('accounting.master.index', 'accounts') }}">Semua COA</a>
-    <a class="btn" href="{{ route('accounting.master.index', ['accounts', 'group'=>'general']) }}">COA Umum</a>
-    <a class="btn" href="{{ route('accounting.master.index', ['accounts', 'group'=>'referral']) }}">COA Referal</a>
+    @foreach(['' => 'Semua COA', 'general' => 'COA Umum', 'referral' => 'COA Referal'] as $group => $label)
+        <a class="btn {{ request()->query('group', '') === $group ? 'primary' : '' }}"
+           href="{{ route('accounting.master.index', ['accounts', 'group' => $group ?: null, 'q' => $search === '' ? null : $search]) }}">{{ $label }}</a>
+    @endforeach
 </div>
 @endif
 @if($canManageMaster)
@@ -94,11 +95,28 @@
 @endif
 
 <div class="card">
+    @if($type === 'accounts')
+        <form method="GET" action="{{ route('accounting.master.index', 'accounts') }}">
+            @if(request()->filled('group'))
+                <input type="hidden" name="group" value="{{ request()->query('group') }}">
+            @endif
+            <div class="field">
+                <label for="coa-search">Cari COA</label>
+                <input id="coa-search" type="search" name="q" value="{{ $search }}" placeholder="Kode atau nama akun">
+            </div>
+            <div class="actions">
+                <button type="submit" class="btn primary">Cari</button>
+                @if($search !== '')
+                    <a class="btn" href="{{ route('accounting.master.index', ['accounts', 'group' => request()->query('group')]) }}">Hapus Pencarian</a>
+                @endif
+            </div>
+        </form>
+    @endif
     <div class="table-responsive">
         <table>
             <thead><tr><th>Code</th><th>Nama</th>@if($type === 'financial-groups')<th>Jenis</th><th>Urutan</th>@endif @if(in_array($type,['guarantors','expense-categories']))<th>Group Laporan</th>@endif <th>Status</th>@if($canManageMaster)<th>Aksi</th>@endif</tr></thead>
             <tbody>
-                @foreach($items as $x)
+                @forelse($items as $x)
                     <tr>
                         <td>{{ $x->code }}</td><td>{{ $x->name }} @if($type === 'accounts' && $x->is_referral)<span class="badge">Referal</span>@endif</td>
                         @if($type === 'financial-groups')<td>{{ $x->type === 'INCOME' ? 'Pemasukan' : 'Pengeluaran' }}</td><td>{{ $x->sort_order }}</td>@endif
@@ -115,7 +133,11 @@
                             </div></td>
                         @endif
                     </tr>
-                @endforeach
+                @empty
+                    @if($type === 'accounts')
+                        <tr><td colspan="{{ $canManageMaster ? 4 : 3 }}">COA tidak ditemukan.</td></tr>
+                    @endif
+                @endforelse
             </tbody>
         </table>
     </div>

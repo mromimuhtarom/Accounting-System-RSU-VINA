@@ -39,9 +39,25 @@ class MasterController extends Controller
             $editingItem = $model::findOrFail((int) $request->edit);
         }
 
+        $query = $model::query()->orderBy($sortColumn);
+        $search = '';
+        if ($type === 'accounts') {
+            $search = trim($request->string('q')->toString());
+            if ($request->filled('group')) {
+                $query->where('is_referral', $request->input('group') === 'referral');
+            }
+            if ($search !== '') {
+                $pattern = '%'.strtr($search, ['!' => '!!', '%' => '!%', '_' => '!_']).'%';
+                $query->where(fn ($accounts) => $accounts
+                    ->whereRaw("code LIKE ? ESCAPE '!'", [$pattern])
+                    ->orWhereRaw("name LIKE ? ESCAPE '!'", [$pattern]));
+            }
+        }
+
+        $items = $query->paginate(10)->withQueryString();
         $lockedCoaIds = [];
         if ($type === 'accounts') {
-            foreach (ChartAccount::query()->select(['id', 'code'])->get() as $account) {
+            foreach ($items as $account) {
                 if ($this->coaDeleteDependencies($account) !== []) {
                     $lockedCoaIds[] = (int) $account->id;
                 }
@@ -50,9 +66,8 @@ class MasterController extends Controller
 
         return view('accounting.master.index', [
             'type' => $type,
-            'items' => $model::query()->when($type === 'accounts' && $request->filled('group'), fn ($q) => $q->where('is_referral', $request->input('group') === 'referral'))->orderBy($sortColumn)
-                ->paginate(10)
-                ->withQueryString(),
+            'items' => $items,
+            'search' => $search,
             'editingItem' => $editingItem,
             'lockedCoaIds' => $lockedCoaIds,
             'accounts' => ChartAccount::orderBy('code')->get(),
