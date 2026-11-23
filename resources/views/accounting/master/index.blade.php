@@ -8,6 +8,8 @@
         : (in_array($masterRole, ['IT', 'ACCOUNTING', 'ADMIN_ACCOUNTING', 'KEPALA_KEUANGAN', 'KASIR'], true)
            || ($masterRole === 'ASURANSI' && $type === 'guarantors'));
     $form = $editingItem ?? null;
+    $isExpenseCategory = $type === 'expense-categories';
+    $categorySearchParams = $isExpenseCategory && $search !== '' ? ['q' => $search] : [];
 @endphp
 
 <div class="card">
@@ -88,26 +90,26 @@
         </div>
         <div class="actions">
             <button class="btn primary">{{ $form ? 'Simpan Perubahan' : 'Tambah' }}</button>
-            @if($form)<a class="btn" href="{{ route('accounting.master.index',$type) }}">Batal</a>@endif
+            @if($form)<a class="btn" href="{{ route('accounting.master.index', [$type] + $categorySearchParams) }}">Batal</a>@endif
         </div>
     </form>
 </div>
 @endif
 
 <div class="card">
-    @if($type === 'accounts')
-        <form method="GET" action="{{ route('accounting.master.index', 'accounts') }}">
-            @if(request()->filled('group'))
+    @if($type === 'accounts' || $isExpenseCategory)
+        <form method="GET" action="{{ route('accounting.master.index', $type) }}">
+            @if($type === 'accounts' && request()->filled('group'))
                 <input type="hidden" name="group" value="{{ request()->query('group') }}">
             @endif
             <div class="field">
-                <label for="coa-search">Cari COA</label>
-                <input id="coa-search" type="search" name="q" value="{{ $search }}" placeholder="Kode atau nama akun">
+                <label for="master-search">{{ $isExpenseCategory ? 'Cari Kategori Pengeluaran' : 'Cari COA' }}</label>
+                <input id="master-search" type="search" name="q" value="{{ $search }}" placeholder="{{ $isExpenseCategory ? 'Kode atau nama kategori' : 'Kode atau nama akun' }}">
             </div>
             <div class="actions">
                 <button type="submit" class="btn primary">Cari</button>
                 @if($search !== '')
-                    <a class="btn" href="{{ route('accounting.master.index', ['accounts', 'group' => request()->query('group')]) }}">Hapus Pencarian</a>
+                    <a class="btn" href="{{ route('accounting.master.index', [$type, 'group' => $type === 'accounts' ? request()->query('group') : null]) }}">Hapus Pencarian</a>
                 @endif
             </div>
         </form>
@@ -124,7 +126,7 @@
                         <td>{{ $x->is_active ? 'Active' : 'Inactive' }}</td>
                         @if($canManageMaster)
                             <td><div class="actions">
-                                <a class="btn" href="{{ route('accounting.master.index',[$type,'edit'=>$x->id]) }}">Edit</a>
+                                <a class="btn" href="{{ route('accounting.master.index', [$type, 'edit' => $x->id] + $categorySearchParams) }}">Edit</a>
                                 @if($type === 'accounts' && in_array((int)$x->id, $lockedCoaIds ?? [], true))
                                     <button type="button" class="btn" disabled title="COA masih digunakan dan tidak boleh dihapus">Tidak Bisa Dihapus</button>
                                 @else
@@ -136,6 +138,8 @@
                 @empty
                     @if($type === 'accounts')
                         <tr><td colspan="{{ $canManageMaster ? 4 : 3 }}">COA tidak ditemukan.</td></tr>
+                    @elseif($isExpenseCategory)
+                        <tr><td colspan="{{ $canManageMaster ? 5 : 4 }}">Kategori pengeluaran tidak ditemukan.</td></tr>
                     @endif
                 @endforelse
             </tbody>

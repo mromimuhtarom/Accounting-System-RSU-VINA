@@ -17,14 +17,10 @@ class ExpenseController extends Controller
     public function index(Request $request)
     {
         $query = Expense::with([
-            'category',
-            'account',
-            'cashBankAccount',
-            'patient',
-            'receipt',
-            'journal',
-            'creator',
-        ])->where('expense_type', 'GENERAL')->latest('expense_date');
+            'category:id,name',
+            'cashBankAccount:id,name',
+            'creator:id,name',
+        ])->withExists('journal')->where('expense_type', 'GENERAL')->latest('expense_date')->latest('id');
 
         if ($request->filled('q')) {
             $term = trim((string) $request->input('q'));

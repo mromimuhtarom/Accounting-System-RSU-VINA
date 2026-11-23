@@ -3,10 +3,47 @@
 namespace Tests\Feature;
 
 use App\Models\ChartAccount;
+use App\Models\ExpenseCategory;
 use Illuminate\Support\Facades\DB;
 
 class TransactionPerformanceTest extends ExpenseAccessTest
 {
+    public function test_expense_category_search_paginates_and_preserves_master_actions(): void
+    {
+        (require database_path('migrations/2026_08_18_000008_create_financial_groups_table.php'))->up();
+        $type = 'expense-categories';
+        $attributes = [
+            'financial_group_id' => DB::table('financial_groups')->where('code', 'EXP_OPERATIONAL')->value('id'),
+            'expense_account_id' => ChartAccount::where('type', 'EXPENSE')->value('id'),
+            'is_active' => true,
+        ];
+        $this->post(route('accounting.master.store', $type), $attributes + ['code' => 'UJI_01', 'name' => 'Perlengkapan 01'])
+            ->assertSessionHasNoErrors()->assertSessionHas('success');
+        $category = ExpenseCategory::where('code', 'UJI_01')->firstOrFail();
+        foreach (range(2, 11) as $number) {
+            ExpenseCategory::create($attributes + ['code' => "UJI-{$number}", 'name' => sprintf('Perlengkapan %02d', $number)]);
+        }
+
+        $this->get(route('accounting.master.index', [$type, 'q' => 'Perlengkapan']))
+            ->assertOk()->assertSee('Cari Kategori Pengeluaran')
+            ->assertViewHas('items', fn ($items) => $items->total() === 11
+                && $items->count() === 10
+                && str_contains($items->nextPageUrl(), 'q=Perlengkapan')
+                && $items->getCollection()->every(fn ($row) => $row->relationLoaded('financialGroup')));
+        $this->get(route('accounting.master.index', [$type, 'q' => 'Perlengkapan', 'page' => 2]))
+            ->assertOk()->assertViewHas('items', fn ($items) => $items->count() === 1);
+        $this->get(route('accounting.master.index', [$type, 'q' => 'UJI_', 'edit' => $category->id]))
+            ->assertOk()->assertViewHas('items', fn ($items) => $items->total() === 1 && $items->first()->is($category))
+            ->assertViewHas('editingItem', fn ($item) => $item->is($category));
+
+        $this->put(route('accounting.master.update', [$type, $category->id]), $attributes + ['code' => 'UJI_01', 'name' => 'Alat Uji'])
+            ->assertSessionHasNoErrors()->assertSessionHas('success');
+        $this->get(route('accounting.master.index', [$type, 'q' => 'Alat Uji']))->assertOk()->assertSee('Alat Uji');
+        $this->delete(route('accounting.master.destroy', [$type, $category->id]))->assertSessionHas('success');
+        $this->get(route('accounting.master.index', [$type, 'q' => 'Alat Uji']))
+            ->assertOk()->assertSee('Kategori pengeluaran tidak ditemukan.');
+    }
+
     public function test_receipt_coa_migration_moves_only_source_accounts_and_unmapped_legacy_codes(): void
     {
         $migration = require database_path('migrations/2026_11_23_000001_move_receipts_from_1_1_m_to_1_1_o.php');

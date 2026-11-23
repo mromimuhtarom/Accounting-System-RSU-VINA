@@ -71,7 +71,7 @@
                             <div class="actions">
                                 @if($e->attachment_path && $e->expense_type === 'GENERAL' && auth()->user()->canManageTransaction($e->created_by))<a class="btn" href="{{ route($routePrefix.'.attachment', $e) }}" target="_blank" rel="noopener noreferrer">Lihat Bukti</a>@endif
                                 @if($e->expense_type === 'REFERRAL')
-                                    @if($e->journal || $isCashier)
+                                    @if($e->journal_exists || $isCashier)
                                         <span class="muted">Dikelola melalui modul Referal</span>
                                     @else
                                         <a class="btn" href="{{ route('accounting.referrals.edit', $e) }}">Edit</a>
@@ -90,14 +90,14 @@
                                     </form>
 
                                     @unless($isCashier)
-                                        @unless($e->journal)
+                                        @unless($e->journal_exists)
                                         <form method="POST" action="{{ route('accounting.pengeluaran.journal', $e) }}">
                                             @csrf
                                             <button class="btn" type="submit">Buat Jurnal</button>
                                         </form>
                                         @endunless
                                     @endunless
-                                    @if($e->journal)
+                                    @if($e->journal_exists)
                                         <span class="badge">Sudah dijurnal</span>
                                     @endif
                                     @else

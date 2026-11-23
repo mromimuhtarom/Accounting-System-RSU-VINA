@@ -41,23 +41,24 @@ class MasterController extends Controller
             $editingItem = $model::findOrFail((int) $request->edit);
         }
 
-        $query = $model::query()->orderBy($sortColumn);
+        $query = $model::query()->orderBy($sortColumn)->orderBy('id');
         $hasFinancialGroup = in_array($type, ['guarantors', 'expense-categories'], true);
         if ($hasFinancialGroup) {
-            $query->with('financialGroup');
+            $query->with('financialGroup:id,name');
         }
         $search = '';
-        if ($type === 'accounts') {
-            $search = trim($request->string('q')->toString());
-            if ($request->filled('group')) {
-                $query->where('is_referral', $request->input('group') === 'referral');
-            }
+        if (in_array($type, ['accounts', 'expense-categories'], true)) {
+            $keyword = $request->query('q');
+            $search = is_string($keyword) ? trim($keyword) : '';
             if ($search !== '') {
                 $pattern = '%'.strtr($search, ['!' => '!!', '%' => '!%', '_' => '!_']).'%';
-                $query->where(fn ($accounts) => $accounts
+                $query->where(fn ($matches) => $matches
                     ->whereRaw("code LIKE ? ESCAPE '!'", [$pattern])
                     ->orWhereRaw("name LIKE ? ESCAPE '!'", [$pattern]));
             }
+        }
+        if ($type === 'accounts' && $request->filled('group')) {
+            $query->where('is_referral', $request->input('group') === 'referral');
         }
 
         $items = $query->paginate(10)->withQueryString();
@@ -72,12 +73,15 @@ class MasterController extends Controller
             'editingItem' => $editingItem,
             'lockedCoaIds' => $lockedCoaIds,
             'accounts' => in_array($type, ['accounts', 'units', 'cash-banks', 'expense-categories'], true)
-                ? ChartAccount::orderBy('code')->get(['id', 'code', 'name', 'type'])
+                ? ChartAccount::orderBy('code')
+                    ->when($type === 'units', fn ($accounts) => $accounts->where('type', 'REVENUE'))
+                    ->when($type === 'expense-categories', fn ($accounts) => $accounts->where('type', 'EXPENSE'))
+                    ->get(['id', 'code', 'name', 'type'])
                 : collect(),
-            'financialGroups' => $hasFinancialGroup ? FinancialGroup::orderBy('type')
+            'financialGroups' => $hasFinancialGroup ? FinancialGroup::where('type', $type === 'guarantors' ? 'INCOME' : 'EXPENSE')
                 ->orderBy('sort_order')
                 ->orderBy('name')
-                ->get() : collect(),
+                ->get(['id', 'name', 'type']) : collect(),
         ]);
     }
 
