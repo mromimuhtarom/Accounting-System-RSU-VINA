@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\ChartAccount;
 use App\Models\ExpenseCategory;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\TestWith;
 
 class TransactionPerformanceTest extends ExpenseAccessTest
 {
@@ -39,11 +40,13 @@ class TransactionPerformanceTest extends ExpenseAccessTest
         $this->assertDatabaseHas('expenses', ['id' => $unchanged, 'chart_account_id' => $other->id]);
     }
 
-    public function test_electricity_expense_migration_moves_source_category_and_uses_destination_account(): void
+    #[TestWith(['2026_11_23_000002_move_electricity_expenses_to_5_1_b.php', '5-1010', '5.1.B'])]
+    #[TestWith(['2026_11_23_000004_move_expense_category_from_5_1012_to_5_1_c.php', '5-1012', '5.1.C'])]
+    public function test_expense_category_migration_moves_source_category_and_uses_destination_account(string $file, string $from, string $to): void
     {
-        $migration = require database_path('migrations/2026_11_23_000002_move_electricity_expenses_to_5_1_b.php');
+        $migration = require database_path('migrations/'.$file);
         $oldAccount = ChartAccount::where('type', 'EXPENSE')->firstOrFail();
-        $source = ExpenseCategory::create(['code' => '5-1010', 'name' => 'Listrik Lama', 'expense_account_id' => $oldAccount->id]);
+        $source = ExpenseCategory::create(['code' => $from, 'name' => 'Kategori Lama', 'expense_account_id' => $oldAccount->id]);
         $other = ExpenseCategory::where('code', 'UMUM')->firstOrFail();
         $fields = [
             'expense_date' => '2026-11-20', 'chart_account_id' => $oldAccount->id, 'description' => 'Pembayaran',
@@ -57,12 +60,12 @@ class TransactionPerformanceTest extends ExpenseAccessTest
             $migration->up();
             $this->fail('The migration should stop if the target category is missing.');
         } catch (\RuntimeException $error) {
-            $this->assertStringContainsString('tujuan 5.1.B', $error->getMessage());
+            $this->assertStringContainsString('tujuan '.$to, $error->getMessage());
         }
         $this->assertDatabaseHas('expenses', ['id' => $moved, 'expense_category_id' => $source->id]);
 
         $newAccount = ChartAccount::create(['code' => '5102', 'name' => 'Listrik', 'type' => 'EXPENSE', 'normal_balance' => 'DEBIT', 'is_active' => true]);
-        $target = ExpenseCategory::create(['code' => '5.1.B', 'name' => 'Listrik', 'expense_account_id' => $newAccount->id, 'is_active' => true]);
+        $target = ExpenseCategory::create(['code' => $to, 'name' => 'Kategori Tujuan', 'expense_account_id' => $newAccount->id, 'is_active' => true]);
         $migration->up();
         $migration->up();
 
