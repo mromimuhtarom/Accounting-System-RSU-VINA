@@ -15,7 +15,8 @@
         default => null,
     };
     $coaNormalBalance = old('normal_balance', $form?->normal_balance ?? ($coaFormType === 'REVENUE' ? 'CREDIT' : 'DEBIT'));
-    $coaFilters = $type === 'accounts' ? request()->only(['group', 'account_type', 'q']) : [];
+    $coaSortParams = $type === 'accounts' ? ['sort' => $coaSort, 'direction' => $coaDirection] : [];
+    $coaFilters = $type === 'accounts' ? request()->only(['group', 'account_type', 'q']) + $coaSortParams : [];
 @endphp
 
 <div class="card">
@@ -37,11 +38,11 @@
 <div class="card actions coa-filter">
     @foreach(['' => 'Semua COA', 'REVENUE' => 'COA Pemasukan', 'EXPENSE' => 'COA Pengeluaran'] as $accountType => $label)
         <a class="btn {{ request()->query('account_type', '') === $accountType && ($accountType !== '' || !request()->filled('group')) ? 'primary' : '' }}"
-           href="{{ route('accounting.master.index', ['accounts', 'account_type' => $accountType ?: null, 'group' => $accountType === '' ? null : request()->query('group'), 'q' => $search === '' ? null : $search]) }}">{{ $label }}</a>
+           href="{{ route('accounting.master.index', ['accounts', 'account_type' => $accountType ?: null, 'group' => $accountType === '' ? null : request()->query('group'), 'q' => $search === '' ? null : $search] + $coaSortParams) }}">{{ $label }}</a>
     @endforeach
     @foreach(['general' => 'COA Umum', 'referral' => 'COA Referal'] as $group => $label)
         <a class="btn {{ request()->query('group', '') === $group ? 'primary' : '' }}"
-           href="{{ route('accounting.master.index', ['accounts', 'group' => request()->query('group') === $group ? null : $group, 'account_type' => request()->query('account_type'), 'q' => $search === '' ? null : $search]) }}">{{ $label }}</a>
+           href="{{ route('accounting.master.index', ['accounts', 'group' => request()->query('group') === $group ? null : $group, 'account_type' => request()->query('account_type'), 'q' => $search === '' ? null : $search] + $coaSortParams) }}">{{ $label }}</a>
     @endforeach
 </div>
 @endif
@@ -134,6 +135,8 @@
 <div class="card">
     @if($type === 'accounts')
         <form method="GET" action="{{ route('accounting.master.index', $type) }}">
+            <input type="hidden" name="sort" value="{{ $coaSort }}">
+            <input type="hidden" name="direction" value="{{ $coaDirection }}">
             @if($type === 'accounts' && request()->filled('group'))
                 <input type="hidden" name="group" value="{{ request()->query('group') }}">
             @endif
@@ -147,14 +150,32 @@
             <div class="actions">
                 <button type="submit" class="btn primary">Cari</button>
                 @if($search !== '')
-                    <a class="btn" href="{{ route('accounting.master.index', [$type, 'group' => $type === 'accounts' ? request()->query('group') : null, 'account_type' => $type === 'accounts' ? request()->query('account_type') : null]) }}">Hapus Pencarian</a>
+                    <a class="btn" href="{{ route('accounting.master.index', [$type] + array_diff_key($coaFilters, ['q' => true])) }}">Hapus Pencarian</a>
                 @endif
             </div>
         </form>
     @endif
     <div class="table-responsive">
         <table>
-            <thead><tr><th>Code</th><th>Nama</th>@if($type === 'financial-groups')<th>Jenis</th><th>Urutan</th>@endif @if($type === 'accounts')<th>Group Laporan</th>@endif <th>Status</th>@if($canManageMaster)<th>Aksi</th>@endif</tr></thead>
+            <thead><tr>
+                @if($type === 'accounts')
+                    @foreach(['code' => 'Code', 'name' => 'Nama', 'report_group' => 'Grup Laporan', 'status' => 'Status'] as $column => $label)
+                        @php
+                            $activeSort = $coaSort === $column;
+                            $nextDirection = $activeSort && $coaDirection === 'asc' ? 'desc' : 'asc';
+                        @endphp
+                        <th scope="col" @if($activeSort) aria-sort="{{ $coaDirection === 'asc' ? 'ascending' : 'descending' }}" @endif>
+                            <a href="{{ route('accounting.master.index', [$type, 'sort' => $column, 'direction' => $nextDirection] + $coaFilters) }}"
+                               aria-label="{{ $label }}, urutkan {{ $nextDirection === 'asc' ? 'naik' : 'turun' }}">
+                                {{ $label }} <span aria-hidden="true">{{ $activeSort ? ($coaDirection === 'asc' ? '↑' : '↓') : '↕' }}</span>
+                            </a>
+                        </th>
+                    @endforeach
+                @else
+                    <th>Code</th><th>Nama</th>@if($type === 'financial-groups')<th>Jenis</th><th>Urutan</th>@endif<th>Status</th>
+                @endif
+                @if($canManageMaster)<th>Aksi</th>@endif
+            </tr></thead>
             <tbody>
                 @forelse($items as $x)
                     <tr>

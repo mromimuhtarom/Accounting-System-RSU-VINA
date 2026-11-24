@@ -42,7 +42,9 @@ class MasterController extends Controller
             $editingItem = $model::findOrFail((int) $request->edit);
         }
 
-        $query = $model::query()->orderBy($sortColumn)->orderBy('id');
+        $query = $model::query();
+        $coaSort = 'code';
+        $coaDirection = 'asc';
         $hasFinancialGroup = $type === 'accounts';
         if ($hasFinancialGroup) {
             $query->with('financialGroup:id,name');
@@ -54,8 +56,8 @@ class MasterController extends Controller
             if ($search !== '') {
                 $pattern = '%'.strtr($search, ['!' => '!!', '%' => '!%', '_' => '!_']).'%';
                 $query->where(fn ($matches) => $matches
-                    ->whereRaw("code LIKE ? ESCAPE '!'", [$pattern])
-                    ->orWhereRaw("name LIKE ? ESCAPE '!'", [$pattern]));
+                    ->whereRaw("chart_accounts.code LIKE ? ESCAPE '!'", [$pattern])
+                    ->orWhereRaw("chart_accounts.name LIKE ? ESCAPE '!'", [$pattern]));
             }
         }
         if ($type === 'accounts' && $request->filled('group')) {
@@ -64,7 +66,26 @@ class MasterController extends Controller
         $accountType = $request->query('account_type');
         $coaTypeFilter = $type === 'accounts' && in_array($accountType, ['REVENUE', 'EXPENSE'], true) ? $accountType : null;
         if ($coaTypeFilter !== null) {
-            $query->where('type', $coaTypeFilter);
+            $query->where('chart_accounts.type', $coaTypeFilter);
+        }
+
+        if ($type === 'accounts') {
+            $requestedSort = $request->query('sort');
+            $coaSort = in_array($requestedSort, ['code', 'name', 'report_group', 'status'], true) ? $requestedSort : 'code';
+            $coaDirection = $request->query('direction') === 'desc' && $coaSort === $requestedSort ? 'desc' : 'asc';
+            if ($coaSort === 'report_group') {
+                $query->leftJoin('financial_groups as fg', 'fg.id', '=', 'chart_accounts.financial_group_id')
+                    ->select('chart_accounts.*')
+                    ->selectRaw("COALESCE(fg.name, CASE WHEN chart_accounts.type = 'REVENUE' THEN ? ELSE ? END) AS report_group_sort", ['Mengikuti penjamin', '-'])
+                    ->orderBy('report_group_sort', $coaDirection);
+            } elseif ($coaSort === 'status') {
+                $query->orderBy('chart_accounts.is_active', $coaDirection === 'asc' ? 'desc' : 'asc');
+            } else {
+                $query->orderBy('chart_accounts.'.$coaSort, $coaDirection);
+            }
+            $query->orderBy('chart_accounts.id');
+        } else {
+            $query->orderBy($sortColumn)->orderBy('id');
         }
 
         $items = $query->paginate(10)->withQueryString();
@@ -77,6 +98,8 @@ class MasterController extends Controller
             'items' => $items,
             'search' => $search,
             'coaTypeFilter' => $coaTypeFilter,
+            'coaSort' => $coaSort,
+            'coaDirection' => $coaDirection,
             'editingItem' => $editingItem,
             'lockedCoaIds' => $lockedCoaIds,
             'accounts' => in_array($type, ['accounts', 'units', 'cash-banks'], true)

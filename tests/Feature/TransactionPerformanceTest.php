@@ -9,6 +9,32 @@ use PHPUnit\Framework\Attributes\TestWith;
 
 class TransactionPerformanceTest extends ExpenseAccessTest
 {
+    public function test_master_coa_sorts_filtered_results_before_pagination(): void
+    {
+        $group = DB::table('financial_groups')->where('code', 'EXP_HR')->value('id');
+        foreach (range(1, 11) as $number) {
+            ChartAccount::create([
+                'code' => sprintf('SORT-%02d', $number), 'name' => sprintf('Uji Urut %02d', 12 - $number),
+                'type' => 'EXPENSE', 'normal_balance' => 'DEBIT', 'is_active' => $number !== 1,
+                'financial_group_id' => $number === 2 ? $group : null,
+            ]);
+        }
+        $filters = ['accounts', 'account_type' => 'EXPENSE', 'group' => 'general', 'q' => 'Uji Urut'];
+        foreach ([
+            ['name', 'asc', 'SORT-11'], ['name', 'desc', 'SORT-01'],
+            ['code', 'desc', 'SORT-11'], ['report_group', 'desc', 'SORT-02'], ['status', 'desc', 'SORT-01'],
+        ] as [$sort, $direction, $first]) {
+            $this->get(route('accounting.master.index', $filters + compact('sort', 'direction')))
+                ->assertOk()->assertSee('aria-sort="'.($direction === 'asc' ? 'ascending' : 'descending').'"', false)
+                ->assertViewHas('items', fn ($items) => $items->total() === 11 && $items->first()->code === $first
+                    && str_contains($items->nextPageUrl(), 'sort='.$sort) && str_contains($items->nextPageUrl(), 'direction='.$direction));
+        }
+        $this->get(route('accounting.master.index', $filters + ['sort'=>'name', 'direction'=>'desc', 'page'=>2]))
+            ->assertOk()->assertViewHas('items', fn ($items) => $items->count() === 1 && $items->first()->code === 'SORT-11');
+        $this->get(route('accounting.master.index', $filters + ['sort'=>'unknown', 'direction'=>'desc']))
+            ->assertOk()->assertViewHas('items', fn ($items) => $items->first()->code === 'SORT-01');
+    }
+
     public function test_income_group_backfill_only_fills_coa_with_one_historical_group(): void
     {
         $groups = DB::table('financial_groups')->pluck('id', 'code');
