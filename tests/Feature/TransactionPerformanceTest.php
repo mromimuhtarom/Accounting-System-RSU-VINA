@@ -12,6 +12,7 @@ class TransactionPerformanceTest extends ExpenseAccessTest
     #[TestWith(['2026_11_24_000001_move_office_supply_expenses_to_5_1_h.php', '5-1008', '5.1.H', 'XLS_5_1_H'])]
     #[TestWith(['2026_11_24_000002_move_unmapped_expenses_to_5_1_i.php', 'IMPORT-EXPENSE-UNMAPPED', '5.1.I', 'XLS_5_1_I'])]
     #[TestWith(['2026_11_24_000003_move_medicine_expenses_to_5_2_a.php', '5-1005', '5.2.A', 'XLS_5_2_A'])]
+    #[TestWith(['2026_11_24_000006_move_transfusion_expenses_to_5_3_c.php', '5-1002', '5.3.C', 'XLS_5_3_C'])]
     public function test_expense_account_migration_updates_coa_and_category(string $file, string $from, string $to, string $destinationCode): void
     {
         $migration = require database_path('migrations/'.$file);
