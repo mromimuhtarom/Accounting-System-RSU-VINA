@@ -9,6 +9,18 @@ use PHPUnit\Framework\Attributes\TestWith;
 
 class TransactionPerformanceTest extends ExpenseAccessTest
 {
+    public function test_master_coa_can_show_revenue_and_expense_accounts_separately(): void
+    {
+        $income = ChartAccount::create(['code'=>'TEST-REV', 'name'=>'Kelompok Uji', 'type'=>'REVENUE', 'normal_balance'=>'CREDIT']);
+        $expense = ChartAccount::create(['code'=>'TEST-EXP', 'name'=>'Kelompok Uji', 'type'=>'EXPENSE', 'normal_balance'=>'DEBIT']);
+
+        foreach ([$income, $expense] as $account) {
+            $this->get(route('accounting.master.index', ['accounts', 'account_type'=>$account->type, 'group'=>'general', 'q'=>'Kelompok Uji']))
+                ->assertOk()->assertSee('COA Pemasukan')->assertSee('COA Pengeluaran')
+                ->assertViewHas('items', fn ($items) => $items->getCollection()->modelKeys() === [$account->id]);
+        }
+    }
+
     #[TestWith(['2026_11_24_000001_move_office_supply_expenses_to_5_1_h.php', '5-1008', '5.1.H', 'XLS_5_1_H'])]
     #[TestWith(['2026_11_24_000002_move_unmapped_expenses_to_5_1_i.php', 'IMPORT-EXPENSE-UNMAPPED', '5.1.I', 'XLS_5_1_I'])]
     #[TestWith(['2026_11_24_000003_move_medicine_expenses_to_5_2_a.php', '5-1005', '5.2.A', 'XLS_5_2_A'])]

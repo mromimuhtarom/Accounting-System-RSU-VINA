@@ -102,6 +102,25 @@ class ExpenseAccessTest extends TestCase
         $this->get(route('cashier.expenses.index', ['q' => 'tidak-ada']))->assertOk()->assertDontSee($expense->expense_no);
     }
 
+    public function test_single_expense_uses_coa_without_manual_category_setup(): void
+    {
+        (require database_path('migrations/2026_08_18_000008_create_financial_groups_table.php'))->up();
+        $account = ChartAccount::create(['code'=>'EXP-NEW', 'name'=>'COA Beban Baru', 'type'=>'EXPENSE', 'normal_balance'=>'DEBIT']);
+        $this->get(route('cashier.expenses.create'))->assertOk()
+            ->assertSee('EXP-NEW')->assertSee('name="chart_account_id"', false)
+            ->assertDontSee('name="expense_category_id"', false);
+        $data = ['expense_date'=>'2026-11-24', 'chart_account_id'=>$account->id, 'description'=>'Pengeluaran COA baru',
+            'amount'=>10000, 'payment_method'=>'CASH', 'cash_bank_account_id'=>$this->cash->id];
+        $this->post(route('cashier.expenses.store'), $data)->assertSessionHasNoErrors();
+        $expense = Expense::firstOrFail();
+        $this->assertSame($account->id, $expense->chart_account_id);
+        $this->assertEquals('EXP_OPERATIONAL', $expense->category->financialGroup->code);
+
+        $this->put(route('cashier.expenses.update', $expense), $data)->assertSessionHasNoErrors();
+        $this->assertSame($expense->expense_category_id, $expense->fresh()->expense_category_id);
+        $this->assertSame(1, $account->expenseCategories()->count());
+    }
+
     public function test_cashier_can_edit_posted_expense_and_journal_stays_balanced(): void
     {
         $expense = $this->expense(['created_by' => $this->cashier->id]);

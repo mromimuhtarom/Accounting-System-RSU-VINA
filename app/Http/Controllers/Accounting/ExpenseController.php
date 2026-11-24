@@ -7,9 +7,13 @@ use App\Models\CashBankAccount;
 use App\Models\ChartAccount;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use App\Models\FinancialGroup;
 use App\Services\JournalService;
 use App\Services\ExpenseTransactionService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class ExpenseController extends Controller
@@ -67,7 +71,7 @@ class ExpenseController extends Controller
         if ($path) $data['attachment_path'] = $path;
         unset($data['attachment']);
 
-        try { Expense::create($data); }
+        try { DB::transaction(fn () => Expense::create($this->withExpenseCategory($data))); }
         catch (\Throwable $e) {
             app(\App\Services\TransactionEvidence::class)->delete($path);
             throw $e;
@@ -110,7 +114,12 @@ class ExpenseController extends Controller
         if ($path) $data['attachment_path'] = $path;
 
         unset($data['attachment']);
-        try { app(ExpenseTransactionService::class)->update($pengeluaran, $data); }
+        try {
+            DB::transaction(function () use ($pengeluaran, $data) {
+                $current = Expense::lockForUpdate()->findOrFail($pengeluaran->id);
+                app(ExpenseTransactionService::class)->update($current, $this->withExpenseCategory($data, $current->expense_category_id));
+            });
+        }
         catch (\Throwable $e) {
             app(\App\Services\TransactionEvidence::class)->delete($path);
             throw $e;
@@ -165,31 +174,33 @@ class ExpenseController extends Controller
     private function formData(): array
     {
         return [
-            'categories' => ExpenseCategory::query()
-                ->where('is_active', true)
-                ->where('code', '!=', 'REFERAL')
-                ->whereHas('expenseAccount', fn ($q) => $q->where('is_active', true)->where('type', 'EXPENSE')->where('is_referral', false))
-                ->with(['expenseAccount:id,code,name'])
-                ->orderBy('name')
-                ->get(),
-
-                        'cashBanks' => CashBankAccount::where('is_active', true)
-                ->get(),
+            'accounts' => $this->expenseAccounts()->orderBy('code')->get(['id', 'code', 'name']),
+            'cashBanks' => CashBankAccount::where('is_active', true)->get(['id', 'name']),
         ];
     }
 
     public function validated(Request $request): array
     {
+        $usesCategory = $request->filled('expense_category_id');
         $data = $request->validate([
             'expense_date' => ['required', 'date'],
-            'expense_category_id' => ['required', 'exists:expense_categories,id'],
-                        'description' => ['required', 'string', 'max:500'],
+            ...($usesCategory
+                ? ['expense_category_id' => ['required', 'integer', 'exists:expense_categories,id']]
+                : ['chart_account_id' => ['required', 'integer']]),
+            'description' => ['required', 'string', 'max:500'],
             'amount' => ['required', 'numeric', 'gt:0'],
             'payment_method' => ['required', 'in:CASH,TRANSFER,QRIS,CARD'],
             'cash_bank_account_id' => ['required', 'exists:cash_bank_accounts,id'],
             'reference_no' => ['nullable', 'string', 'max:100'],
             'attachment' => ['nullable', 'file', 'max:5120'],
         ]);
+
+        if (!$usesCategory) {
+            if (!$this->expenseAccounts()->whereKey($data['chart_account_id'])->exists()) {
+                throw ValidationException::withMessages(['chart_account_id' => 'Pilih COA Beban umum yang aktif.']);
+            }
+            return $data;
+        }
 
         $category = ExpenseCategory::with('expenseAccount')->findOrFail($data['expense_category_id']);
 
@@ -200,7 +211,6 @@ class ExpenseController extends Controller
             ]);
         }
 
-        // Jangan percaya COA yang dikirim browser; selalu ambil dari pemetaan kategori.
         $data['chart_account_id'] = $category->expense_account_id;
 
         if ($category->code === 'REFERAL' || $category->expenseAccount->is_referral) {
@@ -209,6 +219,41 @@ class ExpenseController extends Controller
             ]);
         }
 
+        return $data;
+    }
+
+    private function expenseAccounts(): \Illuminate\Database\Eloquent\Builder
+    {
+        return ChartAccount::where('is_active', true)->where('type', 'EXPENSE')->where('is_referral', false);
+    }
+
+    private function withExpenseCategory(array $data, ?int $currentCategoryId = null): array
+    {
+        if (isset($data['expense_category_id'])) {
+            return $data;
+        }
+
+        $account = $this->expenseAccounts()->lockForUpdate()->find($data['chart_account_id']);
+        if (!$account) {
+            throw ValidationException::withMessages(['chart_account_id' => 'Pilih COA Beban umum yang aktif.']);
+        }
+
+        $category = $account->expenseCategories()->where('is_active', true)->where('code', '!=', 'REFERAL')
+            ->orderByRaw('CASE WHEN id = ? THEN 0 WHEN code = ? THEN 1 ELSE 2 END', [$currentCategoryId, $account->code])
+            ->orderBy('id')->lockForUpdate()->first();
+
+        if (!$category) {
+            $code = ExpenseCategory::where('code', $account->code)->exists()
+                || strtoupper($account->code) === 'REFERAL' ? 'COA-'.Str::ulid() : $account->code;
+            $attributes = ['code' => $code, 'name' => $account->name, 'is_active' => true];
+            if (Schema::hasColumn('expense_categories', 'financial_group_id')) {
+                $attributes['financial_group_id'] = FinancialGroup::where('type', 'EXPENSE')
+                    ->where('code', 'EXP_OPERATIONAL')->where('is_active', true)->value('id');
+            }
+            $category = $account->expenseCategories()->create($attributes);
+        }
+
+        $data['expense_category_id'] = $category->id;
         return $data;
     }
 

@@ -8,13 +8,14 @@ use Illuminate\Support\Facades\{DB, Event, Storage};
 
 class BatchTransactionTest extends ExpenseAccessTest
 {
-    public function test_grouped_entry_shares_category_and_payment_but_keeps_details_separate(): void
+    public function test_grouped_entry_shares_coa_and_payment_but_keeps_details_separate(): void
     {
-        $common = $this->expenseRow();
-        unset($common['description'], $common['amount']);
+        $account = ChartAccount::create(['code'=>'EXP-BATCH', 'name'=>'Beban Batch', 'type'=>'EXPENSE', 'normal_balance'=>'DEBIT']);
+        $common = $this->expenseRow(['chart_account_id' => $account->id]);
+        unset($common['description'], $common['amount'], $common['expense_category_id']);
         $this->get(route('cashier.expenses.create', ['multiple'=>1, 'grouped'=>1]))->assertOk()
-            ->assertSee('name="common[expense_category_id]"', false)
-            ->assertDontSee('name="rows[0][expense_category_id]"', false)
+            ->assertSee('name="common[chart_account_id]"', false)
+            ->assertDontSee('name="rows[0][chart_account_id]"', false)
             ->assertSee('name="rows[0][amount]"', false);
         $this->post(route('cashier.expenses.store'), ['common'=>$common, 'rows'=>[
             ['description'=>'PT Rincian A', 'amount'=>100000],
@@ -22,6 +23,7 @@ class BatchTransactionTest extends ExpenseAccessTest
         ]])->assertSessionHasNoErrors();
         $this->assertSame(2, Expense::count());
         $this->assertSame(1, Expense::distinct()->count('expense_category_id'));
+        $this->assertSame(1, $account->expenseCategories()->count());
         $this->assertEquals(300000, Expense::sum('amount'));
         $receipt = $this->receiptRow();
         unset($receipt['notes'], $receipt['amount']);

@@ -30,9 +30,13 @@
 
 @if($type === 'accounts')
 <div class="card actions">
+    @foreach(['' => 'Semua Jenis', 'REVENUE' => 'COA Pemasukan', 'EXPENSE' => 'COA Pengeluaran'] as $accountType => $label)
+        <a class="btn {{ request()->query('account_type', '') === $accountType ? 'primary' : '' }}"
+           href="{{ route('accounting.master.index', ['accounts', 'account_type' => $accountType ?: null, 'group' => request()->query('group'), 'q' => $search === '' ? null : $search]) }}">{{ $label }}</a>
+    @endforeach
     @foreach(['' => 'Semua COA', 'general' => 'COA Umum', 'referral' => 'COA Referal'] as $group => $label)
         <a class="btn {{ request()->query('group', '') === $group ? 'primary' : '' }}"
-           href="{{ route('accounting.master.index', ['accounts', 'group' => $group ?: null, 'q' => $search === '' ? null : $search]) }}">{{ $label }}</a>
+           href="{{ route('accounting.master.index', ['accounts', 'group' => $group ?: null, 'account_type' => request()->query('account_type'), 'q' => $search === '' ? null : $search]) }}">{{ $label }}</a>
     @endforeach
 </div>
 @endif
@@ -102,6 +106,9 @@
             @if($type === 'accounts' && request()->filled('group'))
                 <input type="hidden" name="group" value="{{ request()->query('group') }}">
             @endif
+            @if($type === 'accounts' && in_array(request()->query('account_type'), ['REVENUE', 'EXPENSE'], true))
+                <input type="hidden" name="account_type" value="{{ request()->query('account_type') }}">
+            @endif
             <div class="field">
                 <label for="master-search">{{ $isExpenseCategory ? 'Cari Kategori Pengeluaran' : 'Cari COA' }}</label>
                 <input id="master-search" type="search" name="q" value="{{ $search }}" placeholder="{{ $isExpenseCategory ? 'Kode atau nama kategori' : 'Kode atau nama akun' }}">
@@ -109,7 +116,7 @@
             <div class="actions">
                 <button type="submit" class="btn primary">Cari</button>
                 @if($search !== '')
-                    <a class="btn" href="{{ route('accounting.master.index', [$type, 'group' => $type === 'accounts' ? request()->query('group') : null]) }}">Hapus Pencarian</a>
+                    <a class="btn" href="{{ route('accounting.master.index', [$type, 'group' => $type === 'accounts' ? request()->query('group') : null, 'account_type' => $type === 'accounts' ? request()->query('account_type') : null]) }}">Hapus Pencarian</a>
                 @endif
             </div>
         </form>

@@ -60,6 +60,10 @@ class MasterController extends Controller
         if ($type === 'accounts' && $request->filled('group')) {
             $query->where('is_referral', $request->input('group') === 'referral');
         }
+        $accountType = $request->query('account_type');
+        if ($type === 'accounts' && in_array($accountType, ['REVENUE', 'EXPENSE'], true)) {
+            $query->where('type', $accountType);
+        }
 
         $items = $query->paginate(10)->withQueryString();
         $lockedCoaIds = $type === 'accounts'

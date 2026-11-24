@@ -45,13 +45,14 @@
                 @error('expense_date') <span class="expense-error">{{ $message }}</span> @enderror
             </div>
             <div class="field">
-                <label for="expense-category">Kategori pengeluaran</label>
-                <select id="expense-category" name="expense_category_id" required aria-describedby="expense-category-help">
-                    @foreach($categories as $x)
-                        <option value="{{ $x->id }}" @selected(old('expense_category_id', $expense?->expense_category_id) == $x->id)>{{ $x->name }} — {{ $x->expenseAccount?->code }}</option>
+                <label for="expense-coa">COA Pengeluaran</label>
+                <select id="expense-coa" name="chart_account_id" required>
+                    <option value="">Pilih COA Pengeluaran</option>
+                    @foreach($accounts as $account)
+                        <option value="{{ $account->id }}" @selected(old('chart_account_id', $expense?->chart_account_id) == $account->id)>{{ $account->code }} — {{ $account->name }}</option>
                     @endforeach
                 </select>
-                <small class="expense-help" id="expense-category-help">Pilih jenis pengeluaran yang sesuai.</small>
+                @error('chart_account_id') <span class="expense-error">{{ $message }}</span> @enderror
                 @error('expense_category_id') <span class="expense-error">{{ $message }}</span> @enderror
             </div>
             <div class="field expense-wide">

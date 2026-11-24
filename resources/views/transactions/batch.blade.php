@@ -3,6 +3,8 @@
 @php
     $isReceipt = $module === 'receipts';
     $isReferral = $module === 'referrals';
+    $usesExpenseCoa = !$isReceipt && !$isReferral;
+    $groupedLabel = $usesExpenseCoa ? 'Satu COA, Banyak Rincian' : 'Satu Kategori, Banyak Rincian';
     $grouped = request()->boolean('grouped') || is_array(old('common'));
     $historyField = $isReceipt ? 'notes' : 'description';
     $historyQuery = $isReceipt
@@ -26,7 +28,7 @@
             'referral_patient_name'=>['Nama Pasien','text',true], 'referral_medical_record_no'=>['Nomor RM','text',true],
             'referral_procedure'=>['Jenis Tindakan','select',true,['SC'=>'SC','RI'=>'RI']], 'description'=>['Keterangan','textarea',false]];
     } else {
-        $fields += ['expense_category_id'=>['Kategori Pengeluaran','select',true,$categories->mapWithKeys(fn ($c) => [$c->id=>$c->name.' - '.$c->expenseAccount?->code])->all()], 'description'=>['Keterangan','textarea',true]];
+        $fields += ['chart_account_id'=>['COA Pengeluaran','select',true,$accounts->mapWithKeys(fn ($a) => [$a->id=>$a->code.' - '.$a->name])->all()], 'description'=>['Keterangan','textarea',true]];
     }
     $fields['amount'] = ['Nominal (Rp)','number',true];
     if (!$isReceipt) $fields += ['payment_method'=>['Metode Pembayaran','select',true,['CASH'=>'Tunai (Cash)','TRANSFER'=>'Transfer','QRIS'=>'QRIS','CARD'=>'Debit / Kartu']],
@@ -38,11 +40,11 @@
 @csrf
 <div class="card actions">
 <a class="btn" href="{{ $singleUrl }}">Form Biasa</a>
-<a class="btn" href="{{ $singleUrl }}?multiple=1">Banyak Transaksi / Kategori Berbeda</a>
-<a class="btn" href="{{ $singleUrl }}?multiple=1&amp;grouped=1">Satu Kategori, Banyak Rincian</a>
+<a class="btn" href="{{ $singleUrl }}?multiple=1">{{ $usesExpenseCoa ? 'Banyak Transaksi / COA Berbeda' : 'Banyak Transaksi / Kategori Berbeda' }}</a>
+<a class="btn" href="{{ $singleUrl }}?multiple=1&amp;grouped=1">{{ $groupedLabel }}</a>
 </div>
 @if($grouped)
-<div class="card"><h3>Satu Kategori, Banyak Rincian</h3><p>Pilihan di sini berlaku untuk semua rincian. Setiap rincian disimpan sebagai transaksi tersendiri; total dihitung di bawah.</p><div class="form-grid">
+<div class="card"><h3>{{ $groupedLabel }}</h3><p>Pilihan di sini berlaku untuk semua rincian. Setiap rincian disimpan sebagai transaksi tersendiri; total dihitung di bawah.</p><div class="form-grid">
 @foreach(\App\Services\BatchTransactionService::SHARED_FIELDS as $key)
 @if(isset($fields[$key]))
 @php
