@@ -9,12 +9,14 @@ use PHPUnit\Framework\Attributes\TestWith;
 
 class TransactionPerformanceTest extends ExpenseAccessTest
 {
-    public function test_office_supply_expense_migration_updates_coa_and_category(): void
+    #[TestWith(['2026_11_24_000001_move_office_supply_expenses_to_5_1_h.php', '5-1008', '5.1.H', 'XLS_5_1_H'])]
+    #[TestWith(['2026_11_24_000002_move_unmapped_expenses_to_5_1_i.php', 'IMPORT-EXPENSE-UNMAPPED', '5.1.I', 'XLS_5_1_I'])]
+    public function test_expense_account_migration_updates_coa_and_category(string $file, string $from, string $to, string $destinationCode): void
     {
-        $migration = require database_path('migrations/2026_11_24_000001_move_office_supply_expenses_to_5_1_h.php');
+        $migration = require database_path('migrations/'.$file);
         $attributes = ['name' => 'ATK', 'type' => 'EXPENSE', 'normal_balance' => 'DEBIT', 'is_active' => true];
-        $source = ChartAccount::create($attributes + ['code' => '5-1008']);
-        $target = ChartAccount::create($attributes + ['code' => '5.1.H']);
+        $source = ChartAccount::create($attributes + ['code' => $from]);
+        $target = ChartAccount::create($attributes + ['code' => $to]);
         $category = ExpenseCategory::create(['code' => 'ATK', 'name' => 'ATK', 'expense_account_id' => $source->id]);
         $fields = [
             'expense_date' => '2026-11-20', 'expense_category_id' => $category->id, 'description' => 'Pembayaran ATK',
@@ -28,11 +30,11 @@ class TransactionPerformanceTest extends ExpenseAccessTest
             $migration->up();
             $this->fail('The migration should stop if the destination category is missing.');
         } catch (\RuntimeException $error) {
-            $this->assertStringContainsString('XLS_5_1_H', $error->getMessage());
+            $this->assertStringContainsString($destinationCode, $error->getMessage());
         }
         $this->assertDatabaseHas('expenses', ['id' => $moved, 'chart_account_id' => $source->id]);
 
-        $destination = ExpenseCategory::create(['code' => 'XLS_5_1_H', 'name' => 'ATK dan Perlengkapan Kantor', 'expense_account_id' => $target->id, 'is_active' => true]);
+        $destination = ExpenseCategory::create(['code' => $destinationCode, 'name' => 'Kategori Tujuan', 'expense_account_id' => $target->id, 'is_active' => true]);
         $migration->up();
         $migration->up();
 
