@@ -143,33 +143,35 @@ class TransactionPerformanceTest extends ExpenseAccessTest
             ->assertOk()->assertSee('Kategori pengeluaran tidak ditemukan.');
     }
 
-    public function test_receipt_coa_migration_moves_only_source_accounts_and_unmapped_legacy_codes(): void
+    #[TestWith(['2026_11_23_000001_move_receipts_from_1_1_m_to_1_1_o.php', '1.1.M', '1.1.O'])]
+    #[TestWith(['2026_11_24_000004_move_laboratory_receipts_to_1_1_q.php', '4-1004', '1.1.Q'])]
+    public function test_receipt_coa_migration_moves_only_source_accounts_and_unmapped_legacy_codes(string $file, string $from, string $to): void
     {
-        $migration = require database_path('migrations/2026_11_23_000001_move_receipts_from_1_1_m_to_1_1_o.php');
+        $migration = require database_path('migrations/'.$file);
         $attributes = ['name' => 'Pendapatan', 'type' => 'REVENUE', 'normal_balance' => 'CREDIT', 'is_active' => true];
-        $source = ChartAccount::create($attributes + ['code' => '1.1.M']);
+        $source = ChartAccount::create($attributes + ['code' => $from]);
         $other = ChartAccount::create($attributes + ['code' => '1.1.P']);
         $records = ['transaction_date' => '2026-11-20', 'amount' => 10000, 'cashier_id' => DB::table('users')->value('id')];
         $mappedId = DB::table('receipts')->insertGetId($records + ['transaction_no' => 'COA-1', 'chart_account_id' => $source->id]);
-        $legacyId = DB::table('receipts')->insertGetId($records + ['transaction_no' => 'COA-2', 'income_code' => '1.1.M']);
-        $otherId = DB::table('receipts')->insertGetId($records + ['transaction_no' => 'COA-3', 'chart_account_id' => $other->id, 'income_code' => '1.1.M']);
+        $legacyId = DB::table('receipts')->insertGetId($records + ['transaction_no' => 'COA-2', 'income_code' => $from]);
+        $otherId = DB::table('receipts')->insertGetId($records + ['transaction_no' => 'COA-3', 'chart_account_id' => $other->id, 'income_code' => $from]);
 
         try {
             $migration->up();
             $this->fail('The migration should stop if the destination account is missing.');
         } catch (\RuntimeException $error) {
-            $this->assertStringContainsString('COA tujuan 1.1.O', $error->getMessage());
+            $this->assertStringContainsString('COA tujuan '.$to, $error->getMessage());
         }
         $this->assertDatabaseHas('receipts', ['id' => $mappedId, 'chart_account_id' => $source->id]);
 
-        $target = ChartAccount::create($attributes + ['code' => '1.1.O']);
+        $target = ChartAccount::create($attributes + ['code' => $to]);
         $migration->up();
         $migration->up();
 
         foreach ([$mappedId, $legacyId] as $id) {
-            $this->assertDatabaseHas('receipts', ['id' => $id, 'chart_account_id' => $target->id, 'income_code' => '1.1.O', 'amount' => 10000]);
+            $this->assertDatabaseHas('receipts', ['id' => $id, 'chart_account_id' => $target->id, 'income_code' => $to, 'amount' => 10000]);
         }
-        $this->assertDatabaseHas('receipts', ['id' => $otherId, 'chart_account_id' => $other->id, 'income_code' => '1.1.M']);
+        $this->assertDatabaseHas('receipts', ['id' => $otherId, 'chart_account_id' => $other->id, 'income_code' => $from]);
     }
 
     public function test_coa_search_checks_delete_dependencies_in_one_query(): void
