@@ -88,7 +88,6 @@
 
             @if($type === 'guarantors')
                 <div class="field"><label>Category</label><select name="category">@foreach(['SELF_PAY'=>'Umum / Pribadi','BPJS'=>'BPJS Kesehatan','PRIVATE_INSURANCE'=>'Asuransi Swasta','CORPORATE'=>'Corporate','OTHER'=>'Lainnya'] as $k=>$v)<option value="{{ $k }}" @selected(old('category',$form?->category)===$k)>{{ $v }}</option>@endforeach</select></div>
-                <div class="field"><label>Group Laporan</label><select name="financial_group_id" required><option value="">- Pilih Group -</option>@foreach($financialGroups->get('INCOME', []) as $group)<option value="{{ $group->id }}" @selected((string)old('financial_group_id',$form?->financial_group_id)===(string)$group->id)>{{ $group->name }}</option>@endforeach</select></div>
                 <div class="field"><label>BPJS?</label><select name="is_bpjs"><option value="0" @selected((string)old('is_bpjs',(int)($form?->is_bpjs ?? 0))==='0')>Tidak</option><option value="1" @selected((string)old('is_bpjs',(int)($form?->is_bpjs ?? 0))==='1')>Ya</option></select></div>
             @endif
 
@@ -155,13 +154,13 @@
     @endif
     <div class="table-responsive">
         <table>
-            <thead><tr><th>Code</th><th>Nama</th>@if($type === 'financial-groups')<th>Jenis</th><th>Urutan</th>@endif @if(in_array($type,['guarantors','accounts']))<th>Group Laporan</th>@endif <th>Status</th>@if($canManageMaster)<th>Aksi</th>@endif</tr></thead>
+            <thead><tr><th>Code</th><th>Nama</th>@if($type === 'financial-groups')<th>Jenis</th><th>Urutan</th>@endif @if($type === 'accounts')<th>Group Laporan</th>@endif <th>Status</th>@if($canManageMaster)<th>Aksi</th>@endif</tr></thead>
             <tbody>
                 @forelse($items as $x)
                     <tr>
                         <td>{{ $x->code }}</td><td>{{ $x->name }} @if($type === 'accounts' && $x->is_referral)<span class="badge">Referal</span>@endif</td>
                         @if($type === 'financial-groups')<td>{{ $x->type === 'INCOME' ? 'Pemasukan' : 'Pengeluaran' }}</td><td>{{ $x->sort_order }}</td>@endif
-                        @if(in_array($type,['guarantors','accounts']))<td>{{ $x->financialGroup?->name ?? '-' }}</td>@endif
+                        @if($type === 'accounts')<td>{{ $x->financialGroup?->name ?? '-' }}</td>@endif
                         <td>{{ $x->is_active ? 'Active' : 'Inactive' }}</td>
                         @if($canManageMaster)
                             <td><div class="actions">

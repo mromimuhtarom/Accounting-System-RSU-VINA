@@ -69,11 +69,29 @@
  <a class="quick-link" href="{{ route('reports.expense') }}">▧ Laporan Pengeluaran</a>
  </div></div>
 </div>
+<div class="card">
+    <h3 class="section-title">Penerimaan dan Pengeluaran per Grup COA</h3>
+    <div class="grid">
+        @foreach(['Penerimaan' => $incomeByGroup, 'Pengeluaran' => $expenseByGroup] as $label => $rows)
+            <section>
+                <h4>{{ $label }}</h4>
+                @forelse($rows as $group)
+                    <div class="rsv-bar-head">
+                        <strong>{{ $group['name'] }}</strong>
+                        <span>Rp {{ number_format($group['total'], 0, ',', '.') }} <small>· {{ number_format($group['transactions']) }} trx</small></span>
+                    </div>
+                @empty
+                    <p class="muted">Belum ada transaksi aktif.</p>
+                @endforelse
+            </section>
+        @endforeach
+    </div>
+</div>
 <div class="card"><h3 class="section-title">Transaksi Penerimaan Terbaru — {{ $year }}</h3><div class="table-wrap"><table>
- <thead><tr><th>No Transaksi</th><th>Tanggal</th><th>Pasien</th><th>Unit</th><th>Penjamin</th><th>Metode</th><th>Kasir</th><th>Nominal</th></tr></thead>
+ <thead><tr><th>No Transaksi</th><th>Tanggal</th><th>COA</th><th>Pasien</th><th>Unit</th><th>Penjamin</th><th>Metode</th><th>Kasir</th><th>Nominal</th></tr></thead>
  <tbody>@forelse($latestReceipts as $r)
- <tr><td><strong>{{ $r->transaction_no }}</strong></td><td>{{ $r->transaction_date?->format('d M Y') ?? '-' }}</td><td>{{ $r->patient?->name ?? $r->patient_name ?? '-' }}</td><td>{{ $r->serviceUnit?->name ?? '-' }}</td><td>{{ $r->guarantor?->name ?? 'Belum ada penjamin' }}</td><td>{{ $r->payment_method === 'TRANSFER' ? 'Transfer' . ($r->cashBankAccount ? ' · ' . $r->cashBankAccount->name : '') : ($r->payment_method ?? 'Belum diisi') }}</td><td>{{ $r->cashier?->name ?? '-' }}</td><td class="money">Rp {{ number_format($r->amount,0,',','.') }}</td></tr>
- @empty <tr><td colspan="8" class="muted">Tidak ada transaksi aktif pada tahun {{ $year }}.</td></tr>@endforelse</tbody>
+ <tr><td><strong>{{ $r->transaction_no }}</strong></td><td>{{ $r->transaction_date?->format('d M Y') ?? '-' }}</td><td>{{ $r->account?->code ?? $r->income_code ?? '-' }}</td><td>{{ $r->patient?->name ?? $r->patient_name ?? '-' }}</td><td>{{ $r->serviceUnit?->name ?? '-' }}</td><td>{{ $r->guarantor?->name ?? 'Belum ada penjamin' }}</td><td>{{ $r->payment_method === 'TRANSFER' ? 'Transfer' . ($r->cashBankAccount ? ' · ' . $r->cashBankAccount->name : '') : ($r->payment_method ?? 'Belum diisi') }}</td><td>{{ $r->cashier?->name ?? '-' }}</td><td class="money">Rp {{ number_format($r->amount,0,',','.') }}</td></tr>
+ @empty <tr><td colspan="9" class="muted">Tidak ada transaksi aktif pada tahun {{ $year }}.</td></tr>@endforelse</tbody>
  </table></div></div>
 @endif
 @if(in_array($role,['ACCOUNTING','ADMIN_ACCOUNTING','KEPALA_KEUANGAN','OWNER','DIREKTUR']))

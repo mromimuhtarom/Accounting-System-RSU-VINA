@@ -37,7 +37,7 @@ class InsuranceExcelController extends Controller
                 ->orWhereHas('account',fn($a) => $a->where('code','like',"%{$term}%")->orWhere('name','like',"%{$term}%")));
         }
         $rows = $query->orderByDesc('transaction_date')->orderByDesc('id')->get()->map(fn($v, $i) => [
-            $i + 1, (string) $v->transaction_date, $v->income_code ?: ($v->account?->code ?? ''),
+            $i + 1, (string) $v->transaction_date, $v->account?->code ?? $v->income_code ?? '',
             $v->account?->name ?? '', $v->notes ?: ($v->patient_name ?? ''), $v->patient_name ?? '',
             $v->doctor_name ?? '', $v->guarantor?->name ?? 'Belum dipilih', $v->payment_method ?? 'Belum diisi',
             $v->cashier?->name ?? '', (float) $v->amount, $v->status ?? ''

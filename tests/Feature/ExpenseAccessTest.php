@@ -63,6 +63,7 @@ class ExpenseAccessTest extends TestCase
         (require database_path('migrations/2026_08_18_000008_create_financial_groups_table.php'))->up();
         if (!$this->usesLegacyExpenseSchema()) {
             (require database_path('migrations/2026_11_24_000007_move_report_groups_to_coa.php'))->up();
+            (require database_path('migrations/2026_11_24_000009_remove_unused_guarantor_report_group.php'))->up();
         }
         $this->cash = CashBankAccount::create(['code' => 'KAS', 'name' => 'Kas utama', 'type' => 'CASH', 'chart_account_id' => $cashAccount->id]);
         $this->actingAs($this->cashier);
@@ -99,6 +100,15 @@ class ExpenseAccessTest extends TestCase
         $summaries = collect(DB::getQueryLog())->filter(fn ($query) => str_contains(strtolower($query['query']), ' as income'));
         $this->assertCount(1, $summaries);
         DB::disableQueryLog();
+    }
+
+    public function test_legacy_casemix_dashboard_can_open_without_the_legacy_bpjs_route(): void
+    {
+        $application = DB::table('applications')->where('code', 'ACCOUNTING')->value('id');
+        $role = DB::table('roles')->insertGetId(['application_id'=>$application, 'code'=>'CASEMIX', 'name'=>'Casemix']);
+        $this->owner->roles()->attach($role);
+
+        $this->actingAs($this->owner)->get(route('dashboard'))->assertOk()->assertViewIs('dashboard');
     }
 
     public function test_cashier_sees_general_expenses_separately_from_referrals(): void

@@ -2,10 +2,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Expense;
+use App\Models\FinancialGroup;
 use App\Models\Receipt;
+use App\Services\CoaReportGroups;
+use App\Services\LedgerAmounts;
 use Illuminate\Http\Request;
 use App\Models\InsuranceMonthlyClaim;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 
 class DashboardController extends Controller
 {
@@ -22,13 +25,14 @@ class DashboardController extends Controller
         }
 
         $role = $role !== '' ? $role : null;
-        if ($role === 'CASEMIX') {
+        if ($role === 'CASEMIX' && Route::has('accounting.bpjs.index')) {
             return redirect()->route('accounting.bpjs.index');
         }
 
         $stats = [];
         $latestReceipts = collect();
         $guarantorComposition = collect();
+        $incomeByGroup = $expenseByGroup = collect();
         // Tahun periode eksplisit, tidak bergantung pada nilai default client.
         $year = (int) $request->query('tahun', now()->year);
         if ($year < 2020 || $year > (int) now()->year + 1) {
@@ -59,16 +63,32 @@ class DashboardController extends Controller
                 COALESCE(SUM(CASE WHEN payment_method IN ('CASH','TRANSFER','QRIS','CARD') AND guarantor_id IS NULL THEN amount ELSE 0 END),0) AS unclassified,
                 COALESCE(SUM(amount),0) AS total_records, COUNT(*) AS total_record_count
             ")->first()->getAttributes();
-            $stats['expense'] = Expense::where('status','ACTIVE')->whereBetween('expense_date', $period)->sum('amount');
-            // Komposisi seluruh penerimaan TERCATAT (bukan klaim sebagai kas cair). Termasuk penjamin
-            // yang sudah tidak aktif, dan penjamin kosong/ID tidak ditemukan.
-            $guarantorComposition = (clone $active)
+            $groups = FinancialGroup::where('is_active', true)->get(['code', 'name', 'type']);
+            $receiptGroups = (clone $active)
                 ->leftJoin('guarantors', 'receipts.guarantor_id', '=', 'guarantors.id')
-                ->selectRaw("COALESCE(guarantors.name, 'Belum ada penjamin') AS guarantor_name, COALESCE(SUM(receipts.amount),0) AS total, COUNT(receipts.id) AS transactions")
-                ->groupBy('guarantors.id', 'guarantors.name')
-                ->orderByDesc('total')->get();
+                ->leftJoin('chart_accounts as coa', 'coa.id', '=', 'receipts.chart_account_id')
+                ->leftJoin('financial_groups as g', fn ($join) => $join->on('g.id', '=', 'coa.financial_group_id')
+                    ->where('g.type', 'INCOME')->where('g.is_active', true))
+                ->select('guarantors.id as guarantor_id', 'guarantors.category', 'guarantors.is_bpjs', 'g.code')
+                ->selectRaw("COALESCE(guarantors.name, 'Belum ada penjamin') AS guarantor_name, SUM(receipts.amount) AS total, COUNT(*) AS transactions")
+                ->groupBy('guarantors.id', 'guarantors.name', 'guarantors.category', 'guarantors.is_bpjs', 'g.code')->get();
+            $guarantorComposition = $receiptGroups->groupBy('guarantor_id')->map(fn ($rows) => (object) [
+                'guarantor_name' => $rows->first()->guarantor_name,
+                'total' => $rows->sum(fn ($row) => LedgerAmounts::cents($row->total)) / 100,
+                'transactions' => $rows->sum('transactions'),
+            ])->sortByDesc('total')->values();
+            $incomeByGroup = CoaReportGroups::totals($receiptGroups, 'INCOME',
+                fn ($row) => CoaReportGroups::incomeCode($row->code, $row->category, (bool) $row->is_bpjs), $groups);
 
-            $latestReceipts = Receipt::with(['patient','serviceUnit','guarantor','cashier','cashBankAccount'])
+            $expenseGroups = Expense::where('expenses.status', 'ACTIVE')->whereBetween('expense_date', $period)
+                ->leftJoin('chart_accounts as coa', 'coa.id', '=', 'expenses.chart_account_id')
+                ->leftJoin('financial_groups as g', fn ($join) => $join->on('g.id', '=', 'coa.financial_group_id')
+                    ->where('g.type', 'EXPENSE')->where('g.is_active', true))
+                ->select('g.code')->selectRaw('SUM(expenses.amount) AS total, COUNT(*) AS transactions')->groupBy('g.code')->get();
+            $expenseByGroup = CoaReportGroups::totals($expenseGroups, 'EXPENSE', fn ($row) => $row->code, $groups);
+            $stats['expense'] = $expenseGroups->sum(fn ($row) => LedgerAmounts::cents($row->total)) / 100;
+
+            $latestReceipts = Receipt::with(['account:id,code,name','patient','serviceUnit','guarantor','cashier','cashBankAccount'])
                 ->where('status','ACTIVE')->whereBetween('transaction_date', $period)
                 ->orderByDesc('transaction_date')->orderByDesc('id')->limit(8)->get();
         }
@@ -83,6 +103,6 @@ class DashboardController extends Controller
             $asOf = min(sprintf('%04d-12-31', $year), now('Asia/Jakarta')->toDateString());
             $financialPosition = app(\App\Services\FinancialPosition::class)->at($asOf);
         }
-        return view('dashboard', compact('role','stats','latestReceipts','guarantorComposition','year','referralSummary','assetReport','financialPosition'));
+        return view('dashboard', compact('role','stats','latestReceipts','guarantorComposition','year','referralSummary','assetReport','financialPosition','incomeByGroup','expenseByGroup'));
     }
 }

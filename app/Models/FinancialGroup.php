@@ -22,11 +22,6 @@ class FinancialGroup extends Model
         ];
     }
 
-    public function guarantors()
-    {
-        return $this->hasMany(Guarantor::class);
-    }
-
     public function accounts()
     {
         return $this->hasMany(ChartAccount::class);

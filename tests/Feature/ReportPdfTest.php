@@ -12,6 +12,47 @@ use Illuminate\Support\Str;
 
 class ReportPdfTest extends ExpenseAccessTest
 {
+    public function test_yearly_expense_totals_include_all_active_rows_per_account_and_month(): void
+    {
+        $this->prepareReport();
+        $account = DB::table('chart_accounts')->where('code', '5001')->value('id');
+        $base = ['chart_account_id' => $account, 'description' => 'Uji rekap', 'created_by' => auth()->id(),
+            'payment_method' => 'CASH', 'cash_bank_account_id' => DB::table('cash_bank_accounts')->value('id')];
+        foreach ([['2026-10-01', 12500, 'ACTIVE'], ['2026-10-31', 2500, 'ACTIVE'],
+            ['2026-11-01', 5000, 'ACTIVE'], ['2026-11-15', 9000, 'CANCELLED']] as $i => [$date, $amount, $status]) {
+            DB::table('expenses')->insert($base + ['expense_no' => 'YEARLY-'.$i, 'expense_date' => $date, 'amount' => $amount, 'status' => $status]);
+        }
+        $response = $this->get(route('reports.yearly', ['year' => 2026]))->assertOk();
+        $this->assertEquals(20000, $response->viewData('totalExpense'));
+        $this->assertEquals(15000, $response->viewData('expenseMonths')[10]);
+        $this->assertEquals(5000, $response->viewData('expenseMonths')[11]);
+    }
+
+    public function test_dashboard_and_reports_use_the_same_coa_group_and_keep_unmapped_income(): void
+    {
+        $this->prepareReport();
+        auth()->user()->roles()->sync([DB::table('roles')->where('code', 'ACCOUNTING')->value('id')]);
+        auth()->user()->unsetRelation('roles');
+        (require database_path('migrations/2026_10_24_120000_create_insurance_monthly_claims.php'))->up();
+        $group = \App\Models\FinancialGroup::create(['code'=>'REV_CUSTOM', 'name'=>'Grup Pendapatan Uji', 'type'=>'INCOME']);
+        $account = \App\Models\ChartAccount::create(['code'=>'REV-TEST', 'name'=>'COA Uji', 'type'=>'REVENUE',
+            'normal_balance'=>'CREDIT', 'financial_group_id'=>$group->id]);
+        DB::table('financial_groups')->where('code', 'REV_SERVICE')->update(['is_active'=>false]);
+        $fields = ['transaction_date'=>'2026-10-15', 'cashier_id'=>auth()->id(), 'payment_method'=>'CASH', 'status'=>'ACTIVE'];
+        Receipt::create($fields + ['transaction_no'=>'MATCHED', 'chart_account_id'=>$account->id, 'amount'=>35000]);
+        Receipt::create($fields + ['transaction_no'=>'UNMAPPED', 'amount'=>15000]);
+
+        $dashboard = $this->get(route('dashboard', ['tahun'=>2026]))->assertOk();
+        $this->assertEquals(['REV_CUSTOM'=>35000, 'REV_UNMAPPED'=>15000], $dashboard->viewData('incomeByGroup')->pluck('total', 'code')->all());
+        foreach (['monthly'=>['month'=>10, 'year'=>2026], 'yearly'=>['year'=>2026]] as $report => $period) {
+            $this->get(route('reports.'.$report, $period))->assertOk()->assertViewHas('totalIncome', 50000)
+                ->assertSee('Grup Pendapatan Uji')->assertSee('Pemasukan tanpa grup laporan');
+        }
+        $this->get(route('reports.monthly.detail', ['month'=>10, 'year'=>2026, 'kind'=>'income', 'group'=>'REV_UNMAPPED']))
+            ->assertOk()->assertViewHas('total', 15000);
+        $this->get(route('reports.income'))->assertOk()->assertSee('Grup Pendapatan Uji');
+    }
+
     private function prepareReport(): void
     {
         foreach (['2026_10_29_000001_create_fixed_asset_module.php', '2026_10_29_000002_index_asset_duplicate_candidates.php', '2026_10_29_000003_support_manual_asset_entry.php', '2026_10_29_000004_support_asset_editing_and_soft_deletes.php'] as $file) {

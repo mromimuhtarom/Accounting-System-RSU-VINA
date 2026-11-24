@@ -8,6 +8,7 @@ use App\Models\InsuranceMonthlyClaim;
 use App\Models\FinancialGroup;
 use App\Models\JournalLine;
 use App\Models\Receipt;
+use App\Services\CoaReportGroups;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -22,10 +23,10 @@ class ReportController extends Controller
         $start = CarbonImmutable::create($year, $month, 1)->startOfMonth();
         $end = $start->endOfMonth();
 
-        $receipts = Receipt::with(['account.financialGroup', 'serviceUnit', 'guarantor'])
+        $receipts = Receipt::with(['account.financialGroup', 'serviceUnit:id,name', 'guarantor:id,name,category,is_bpjs'])
             ->where('status', 'ACTIVE')
             ->whereBetween('transaction_date', [$start->toDateString(), $end->toDateString()])
-            ->get();
+            ->get(['chart_account_id', 'service_unit_id', 'guarantor_id', 'income_code', 'service_type', 'transaction_date', 'amount']);
 
         $expenses = Expense::with('account:id,name,financial_group_id')
             ->where('status', 'ACTIVE')
@@ -79,14 +80,18 @@ class ReportController extends Controller
         $start = CarbonImmutable::create($year, 1, 1)->startOfYear();
         $end = $start->endOfYear();
 
-        $receipts = Receipt::with(['account.financialGroup', 'serviceUnit', 'guarantor'])
+        $receipts = Receipt::with(['account.financialGroup', 'serviceUnit:id,name', 'guarantor:id,name,category,is_bpjs'])
             ->where('status', 'ACTIVE')
             ->whereBetween('transaction_date', [$start->toDateString(), $end->toDateString()])
-            ->get();
+            ->get(['chart_account_id', 'service_unit_id', 'guarantor_id', 'income_code', 'service_type', 'transaction_date', 'amount']);
 
         $expenses = Expense::with('account:id,name,financial_group_id')
             ->where('status', 'ACTIVE')
             ->whereBetween('expense_date', [$start->toDateString(), $end->toDateString()])
+            ->select('chart_account_id')
+            ->selectRaw('MIN(expense_date) AS expense_date, SUM(amount) AS amount')
+            ->groupBy('chart_account_id')
+            ->groupByRaw('SUBSTR(expense_date, 1, 7)')
             ->get();
 
         $incomeGroups = FinancialGroup::where('type', 'INCOME')->where('is_active', true)
@@ -140,27 +145,27 @@ class ReportController extends Controller
                 ->where('status', 'ACTIVE')->whereBetween('transaction_date', [$start, $end])->get()
             : Expense::with(['account.financialGroup'])
                 ->where('status', 'ACTIVE')->whereBetween('expense_date', [$start, $end])->get();
-        if (!$isIncome) {
+        if ($isIncome) {
+            $incomeRows = $this->incomeRowsByGroup($groups, $source);
+        } else {
             $groups = $this->includeUnmappedExpenseGroup($groups, $source);
         }
         $selectedGroup = $groupCode === 'all' ? null : $groups->firstWhere('code', $groupCode === 'REFERRAL_UNMAPPED' ? 'EXP_UNMAPPED' : $groupCode);
         abort_if($groupCode !== 'all' && !$selectedGroup, 404, 'Kelompok laporan tidak ditemukan.');
         $groupIds = $groups->keyBy('id');
-        $rows = $source->filter(function ($record) use ($isIncome, $selectedGroup, $groups, $groupIds) {
-            if ($isIncome) {
-                return $selectedGroup
-                    ? $this->receiptBelongsToIncomeGroup($record, $selectedGroup)
-                    : $groups->contains(fn ($group) => $this->receiptBelongsToIncomeGroup($record, $group));
-            }
+        $rows = $isIncome ? ($selectedGroup ? $incomeRows->get($selectedGroup->code, collect()) : $source)
+            : $source->filter(function ($record) use ($selectedGroup, $groupIds) {
             $id = (int) ($record->account?->financial_group_id ?? 0);
             $id = $groupIds->has($id) ? $id : -1;
             return !$selectedGroup || $id === (int) $selectedGroup->id;
-        })->sortByDesc(fn ($record) => ($isIncome ? $record->transaction_date : $record->expense_date) . sprintf('%012d', $record->id))->values();
+        });
+        $rows = $rows->sortByDesc(fn ($record) => ($isIncome ? $record->transaction_date : $record->expense_date) . sprintf('%012d', $record->id))->values();
         $total = (float) $rows->sum('amount');
-        $chartRows = $rows->groupBy(function ($record) use ($isIncome, $selectedGroup, $groups) {
+        $groupNames = $groups->pluck('name', 'code');
+        $chartRows = $rows->groupBy(function ($record) use ($isIncome, $selectedGroup, $groupNames, $groupIds) {
             if (!$selectedGroup) {
-                if (!$isIncome) return $record->account?->financialGroup?->name ?? 'Tanpa kelompok';
-                return $groups->first(fn ($group) => $this->receiptBelongsToIncomeGroup($record, $group))?->name ?? 'Tanpa kelompok';
+                if (!$isIncome) return $groupIds->get((int) $record->account?->financial_group_id)?->name ?? 'Pengeluaran tanpa grup laporan';
+                return $groupNames->get(CoaReportGroups::receiptCode($record), 'Pemasukan tanpa grup laporan');
             }
             if (!$isIncome) return $record->account?->name ?? 'Tanpa COA';
             if (in_array($selectedGroup->code, ['REV_BPJS', 'REV_GUARANTOR'], true)) {
@@ -180,17 +185,18 @@ class ReportController extends Controller
 
     public function income(Request $r)
     {
-        $q = Receipt::with(['account', 'cashier'])->where('status', 'ACTIVE');
+        $q = Receipt::with(['account.financialGroup', 'guarantor:id,category,is_bpjs', 'cashier:id,name'])->where('status', 'ACTIVE');
         $this->dateFilter($q, $r, 'transaction_date');
         $total = (clone $q)->sum('amount');
         $rows = $q->orderBy('transaction_date')->paginate(10)->withQueryString();
 
-        return view('reports.income', compact('rows', 'total'));
+        $incomeGroupNames = FinancialGroup::where('type', 'INCOME')->where('is_active', true)->pluck('name', 'code');
+        return view('reports.income', compact('rows', 'total', 'incomeGroupNames'));
     }
 
     public function expense(Request $r)
     {
-        $q = Expense::with(['account:id,name'])->where('status', 'ACTIVE');
+        $q = Expense::with('account.financialGroup')->where('status', 'ACTIVE');
         $this->dateFilter($q, $r, 'expense_date');
         $total = (clone $q)->sum('amount');
         $rows = $q->orderBy('expense_date')->paginate(10)->withQueryString();
@@ -267,7 +273,7 @@ class ReportController extends Controller
 
     private function buildMonthlyIncome(Collection $groups, Collection $receipts): Collection
     {
-        $receiptsByGroup = $receipts->groupBy($this->receiptIncomeGroupCode(...));
+        $receiptsByGroup = $this->incomeRowsByGroup($groups, $receipts);
         return $groups->map(function ($group) use ($receiptsByGroup) {
             $groupRows = $receiptsByGroup->get($group->code, collect());
 
@@ -328,7 +334,7 @@ class ReportController extends Controller
 
     private function buildYearlyIncome(Collection $groups, Collection $receipts): Collection
     {
-        $receiptsByGroup = $receipts->groupBy($this->receiptIncomeGroupCode(...));
+        $receiptsByGroup = $this->incomeRowsByGroup($groups, $receipts);
         return $groups->map(function ($group) use ($receiptsByGroup) {
             $groupRows = $receiptsByGroup->get($group->code, collect());
 
@@ -427,28 +433,17 @@ class ReportController extends Controller
         return $months;
     }
 
-    private function receiptBelongsToIncomeGroup(Receipt $receipt, object $group): bool
+    private function incomeRowsByGroup(Collection $groups, Collection $receipts): Collection
     {
-        return $group->code === $this->receiptIncomeGroupCode($receipt);
-    }
-
-    private function receiptIncomeGroupCode(Receipt $receipt): string
-    {
-        // Prioritaskan jenis PENJAMIN, karena data historis BPJS punya COA
-        // Pendapatan Rawat Inap/Poli dan sebelumnya salah masuk REV_SERVICE.
-        $group = $receipt->account?->financialGroup;
-        if ($group?->type === 'INCOME' && $group->is_active) {
-            return $group->code;
+        $codes = $groups->keyBy('code');
+        $rows = $receipts->groupBy(function (Receipt $receipt) use ($codes) {
+            $code = CoaReportGroups::receiptCode($receipt);
+            return $codes->has($code) ? $code : CoaReportGroups::UNMAPPED_INCOME;
+        });
+        if ($rows->has(CoaReportGroups::UNMAPPED_INCOME) && !$codes->has(CoaReportGroups::UNMAPPED_INCOME)) {
+            $groups->push((object) ['id' => -1, 'code' => CoaReportGroups::UNMAPPED_INCOME, 'name' => 'Pemasukan tanpa grup laporan']);
         }
-
-        $guarantor = $receipt->guarantor;
-        if ($guarantor && ($guarantor->is_bpjs || $guarantor->category === 'BPJS')) {
-            return 'REV_BPJS';
-        }
-        if ($guarantor && in_array($guarantor->category, ['PRIVATE_INSURANCE','CORPORATE','OTHER'], true)) {
-            return 'REV_GUARANTOR';
-        }
-        return 'REV_SERVICE';
+        return $rows;
     }
 
     private function incomeDetailLabel(Receipt $receipt, string $groupCode): string

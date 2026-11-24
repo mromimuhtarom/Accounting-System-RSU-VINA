@@ -15,6 +15,7 @@
                     <th>Tanggal</th>
                     <th>No</th>
                     <th>Kode</th>
+                    <th>Grup Laporan</th>
                     <th>Keterangan</th>
                     <th>N.Dokter</th>
                     <th>HD</th>
@@ -29,6 +30,7 @@
                     <td>{{ $r->transaction_date->format('d-m-Y') }}</td>
                     <td>{{ $r->transaction_no }}</td>
                     <td><strong>{{ $r->account?->code ?? $r->income_code ?? '-' }}</strong>@if($r->account)<div class="muted">{{ $r->account->name }}</div>@endif</td>
+                    <td>{{ $incomeGroupNames->get(\App\Services\CoaReportGroups::receiptCode($r), 'Pemasukan tanpa grup laporan') }}</td>
                     <td>{{ $r->notes ?: ($r->patient_name ?: '-') }}</td>
                     <td>{{ $r->doctor_name ?: '-' }}</td>
                     <td>{{ $r->hd ?: '-' }}</td>
@@ -37,7 +39,7 @@
                     <td class="money">Rp {{ number_format($r->amount, 0, ',', '.') }}</td>
                 </tr>
             @empty
-                <tr><td colspan="9" class="muted">Belum ada data pemasukan.</td></tr>
+                <tr><td colspan="10" class="muted">Belum ada data pemasukan.</td></tr>
             @endforelse
             </tbody>
         </table>

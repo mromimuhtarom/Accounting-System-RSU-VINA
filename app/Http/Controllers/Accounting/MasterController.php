@@ -43,7 +43,7 @@ class MasterController extends Controller
         }
 
         $query = $model::query()->orderBy($sortColumn)->orderBy('id');
-        $hasFinancialGroup = in_array($type, ['guarantors', 'accounts'], true);
+        $hasFinancialGroup = $type === 'accounts';
         if ($hasFinancialGroup) {
             $query->with('financialGroup:id,name');
         }
@@ -84,7 +84,7 @@ class MasterController extends Controller
                     ->when($type === 'units', fn ($accounts) => $accounts->where('type', 'REVENUE'))
                     ->get(['id', 'code', 'name', 'type'])
                 : collect(),
-            'financialGroups' => $hasFinancialGroup ? FinancialGroup::query()->when($type === 'guarantors', fn ($groups) => $groups->where('type', 'INCOME'))
+            'financialGroups' => $hasFinancialGroup ? FinancialGroup::query()
                 ->orderBy('sort_order')
                 ->orderBy('name')
                 ->get(['id', 'name', 'type'])->groupBy('type') : collect(),
@@ -178,7 +178,6 @@ class MasterController extends Controller
                 'Pengeluaran' => fn () => $item->expenses()->exists(),
             ],
             'financial-groups' => [
-                'Penjamin' => fn () => $item->guarantors()->exists(),
                 'COA' => fn () => $item->accounts()->exists(),
             ],
             default => [],
@@ -309,7 +308,6 @@ class MasterController extends Controller
                     'required',
                     'in:SELF_PAY,BPJS,PRIVATE_INSURANCE,CORPORATE,OTHER',
                 ],
-                'financial_group_id' => ['required', 'exists:financial_groups,id'],
                 'is_bpjs' => ['required', 'boolean'],
                 'is_active' => ['required', 'boolean'],
             ]),
