@@ -156,7 +156,7 @@
         </form>
     @endif
     <div class="table-responsive">
-        <table>
+        <table @if($type === 'accounts') data-sort-disabled @endif>
             <thead><tr>
                 @if($type === 'accounts')
                     @foreach(['code' => 'Code', 'name' => 'Nama', 'report_group' => 'Grup Laporan', 'status' => 'Status'] as $column => $label)

@@ -180,3 +180,8 @@ html[data-reading-size=large]{--reading-size:18px;--reading-small:16px}
 }
 .login-page{line-height:1.6}.login-page .login-card{width:min(480px,100%)}.login-page .field label{font-size:16px;color:#214249}.login-page .field input{font-size:18px;min-height:52px}.login-page .login-submit{min-height:52px;font-size:18px}.login-page .muted,.login-page .login-foot{font-size:15px;color:#435e63}
 @media(prefers-reduced-motion:reduce){.app-shell *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+.app-shell .table-sort-button{display:inline-flex;align-items:center;gap:.35em;min-height:36px;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:inherit;cursor:pointer}
+.app-shell .table-sort-button:hover{text-decoration:underline}
+.app-shell .table-sort-button:focus-visible{outline:2px solid currentColor;outline-offset:3px}
+.app-shell .table-sort-button > span{font-size:.9em;flex:none}
+@media(pointer:coarse){.app-shell .table-sort-button{min-height:44px}}

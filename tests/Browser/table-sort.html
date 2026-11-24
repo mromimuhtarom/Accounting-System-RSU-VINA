@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="id">
+<meta charset="utf-8">
+<title>Uji pengurutan tabel</title>
+<div class="app-shell">
+    <table id="ledger">
+        <thead><tr><th>Tanggal</th><th>Nominal</th><th>Kode</th><th>Aksi</th></tr></thead>
+        <tbody>
+            <tr id="a"><td>14 Okt 2025</td><td>Rp 2.500,00</td><td>A10</td><td><button type="button">Edit</button></td></tr>
+            <tr id="b"><td>01/02/2026</td><td>Rp -25,75</td><td>A2</td><td></td></tr>
+            <tr id="c"><td>31-01-2026</td><td>Rp 100,00</td><td>A3</td><td></td></tr>
+            <tr id="d"><td>—</td><td>—</td><td>—</td><td></td></tr>
+            <tr id="subtotal" class="subtotal-row"><td colspan="4">Subtotal</td></tr>
+            <tr id="e"><td>2026-02-02</td><td>1.000</td><td>B4</td><td></td></tr>
+            <tr id="f"><td>2026-01-01</td><td>50</td><td>B2</td><td></td></tr>
+        </tbody>
+        <tfoot><tr><th colspan="4">Total</th></tr></tfoot>
+    </table>
+    <table id="server" data-sort-disabled>
+        <thead><tr><th><a href="?sort=code">Kode</a></th></tr></thead>
+        <tbody><tr><td>B</td></tr><tr><td>A</td></tr></tbody>
+    </table>
+    <table id="editable">
+        <thead><tr><th>Uraian</th></tr></thead>
+        <tbody><tr><td><input value="B"></td></tr><tr><td><input value="A"></td></tr></tbody>
+    </table>
+    <table id="preview" data-sort-preview>
+        <thead><tr><th>Baris Excel</th><th>Koreksi Master</th></tr></thead>
+        <tbody>
+            <tr><td>10</td><td><select name="overrides[10]"><option value="A">A</option></select></td></tr>
+            <tr><td>2</td><td><select name="overrides[2]"><option value="B">B</option></select></td></tr>
+        </tbody>
+    </table>
+</div>
+<output id="result">PENDING</output>
+<script src="../../public/js/table-sort.js"></script>
+<script>
+    const ledger = document.getElementById('ledger');
+    const headers = ledger.tHead.rows[0].cells;
+    const order = () => [...ledger.tBodies[0].rows].map(row => row.id).join(',');
+    const click = i => headers[i].querySelector('button').click();
+    const edit = document.querySelector('#a button');
+    let edits = 0;
+    edit.addEventListener('click', () => edits++);
+    const expect = (condition, message) => { if (!condition) throw new Error(message); };
+    const result = document.getElementById('result');
+    try {
+        click(0);
+        expect(order() === 'a,c,b,d,subtotal,f,e', 'Urutan tanggal naik');
+        click(0);
+        expect(order() === 'b,c,a,d,subtotal,e,f', 'Urutan tanggal turun');
+        expect(headers[0].getAttribute('aria-sort') === 'descending', 'Arah urut tanggal');
+        click(1);
+        expect(order() === 'b,c,a,d,subtotal,f,e', 'Rupiah negatif, desimal dan ribuan');
+        click(1);
+        expect(order() === 'a,c,b,d,subtotal,e,f', 'Nominal turun');
+        click(2);
+        expect(order() === 'b,c,a,d,subtotal,f,e', 'Kode alfanumerik');
+        expect(!headers[3].querySelector('button'), 'Kolom aksi tanpa kontrol sortir');
+        expect(!headers[1].hasAttribute('aria-sort'), 'Satu header aktif');
+        expect(ledger.tFoot.textContent.trim() === 'Total', 'Total tetap di footer');
+        expect(!document.querySelector('#server button, #editable button'), 'Kontrol server dan tabel input');
+        document.querySelector('#preview thead button').click();
+        expect(document.querySelector('#preview tbody select').name === 'overrides[2]', 'Pilihan impor tetap mengikuti baris Excel');
+        edit.click();
+        expect(edits === 1, 'Tombol tindakan tetap terhubung');
+        result.textContent = 'PASS';
+    } catch (error) {
+        result.textContent = 'FAIL: ' + error.message;
+    }
+</script>
+</html>
