@@ -9,6 +9,37 @@ use PHPUnit\Framework\Attributes\TestWith;
 
 class TransactionPerformanceTest extends ExpenseAccessTest
 {
+    public function test_office_supply_expense_migration_updates_coa_and_category(): void
+    {
+        $migration = require database_path('migrations/2026_11_24_000001_move_office_supply_expenses_to_5_1_h.php');
+        $attributes = ['name' => 'ATK', 'type' => 'EXPENSE', 'normal_balance' => 'DEBIT', 'is_active' => true];
+        $source = ChartAccount::create($attributes + ['code' => '5-1008']);
+        $target = ChartAccount::create($attributes + ['code' => '5.1.H']);
+        $category = ExpenseCategory::create(['code' => 'ATK', 'name' => 'ATK', 'expense_account_id' => $source->id]);
+        $fields = [
+            'expense_date' => '2026-11-20', 'expense_category_id' => $category->id, 'description' => 'Pembayaran ATK',
+            'amount' => 10000, 'payment_method' => 'CASH', 'cash_bank_account_id' => DB::table('cash_bank_accounts')->value('id'),
+            'created_by' => DB::table('users')->value('id'),
+        ];
+        $moved = DB::table('expenses')->insertGetId($fields + ['expense_no' => 'ATK-1', 'chart_account_id' => $source->id]);
+        $unchanged = DB::table('expenses')->insertGetId($fields + ['expense_no' => 'ATK-2', 'chart_account_id' => $target->id]);
+
+        try {
+            $migration->up();
+            $this->fail('The migration should stop if the destination category is missing.');
+        } catch (\RuntimeException $error) {
+            $this->assertStringContainsString('XLS_5_1_H', $error->getMessage());
+        }
+        $this->assertDatabaseHas('expenses', ['id' => $moved, 'chart_account_id' => $source->id]);
+
+        $destination = ExpenseCategory::create(['code' => 'XLS_5_1_H', 'name' => 'ATK dan Perlengkapan Kantor', 'expense_account_id' => $target->id, 'is_active' => true]);
+        $migration->up();
+        $migration->up();
+
+        $this->assertDatabaseHas('expenses', ['id' => $moved, 'chart_account_id' => $target->id, 'expense_category_id' => $destination->id, 'amount' => 10000]);
+        $this->assertDatabaseHas('expenses', ['id' => $unchanged, 'chart_account_id' => $target->id, 'expense_category_id' => $category->id]);
+    }
+
     public function test_expense_coa_migration_moves_only_expenses_linked_to_the_source_account(): void
     {
         $migration = require database_path('migrations/2026_11_23_000003_move_expense_coa_from_5_1012_to_5_1_c.php');
