@@ -9,6 +9,33 @@ use PHPUnit\Framework\Attributes\TestWith;
 
 class TransactionPerformanceTest extends ExpenseAccessTest
 {
+    public function test_income_group_backfill_only_fills_coa_with_one_historical_group(): void
+    {
+        $groups = DB::table('financial_groups')->pluck('id', 'code');
+        $accounts = [];
+        foreach (['same', 'mixed', 'unused', 'assigned'] as $key) {
+            $accounts[$key] = ChartAccount::create(['code' => 'IN-'.$key, 'name'=>$key, 'type'=>'REVENUE', 'normal_balance'=>'CREDIT',
+                'financial_group_id'=>$key === 'assigned' ? $groups['REV_BPJS'] : null]);
+        }
+        $insurer = DB::table('guarantors')->insertGetId(['code'=>'ASR', 'name'=>'Asuransi uji', 'category'=>'PRIVATE_INSURANCE']);
+        $rows = [['same', null], ['same', null], ['mixed', null], ['mixed', $insurer], ['assigned', null]];
+        foreach ($rows as $index => [$key, $guarantor]) {
+            DB::table('receipts')->insert(['transaction_no'=>'BACKFILL-'.$index, 'transaction_date'=>'2026-11-24',
+                'chart_account_id'=>$accounts[$key]->id, 'guarantor_id'=>$guarantor, 'amount'=>1000, 'payment_method'=>'CASH',
+                'cashier_id'=>auth()->id(), 'status'=>'ACTIVE']);
+        }
+
+        $migration = require database_path('migrations/2026_11_24_000010_backfill_income_coa_report_groups.php');
+        $migration->up();
+        $migration->up();
+
+        $this->assertSame($groups['REV_SERVICE'], $accounts['same']->fresh()->financial_group_id);
+        $this->assertNull($accounts['mixed']->fresh()->financial_group_id);
+        $this->assertNull($accounts['unused']->fresh()->financial_group_id);
+        $this->assertSame($groups['REV_BPJS'], $accounts['assigned']->fresh()->financial_group_id);
+        $this->assertDatabaseCount('receipts', 5);
+    }
+
     protected function usesLegacyExpenseSchema(): bool
     {
         return in_array($this->name(), [

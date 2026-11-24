@@ -160,7 +160,9 @@
                     <tr>
                         <td>{{ $x->code }}</td><td>{{ $x->name }} @if($type === 'accounts' && $x->is_referral)<span class="badge">Referal</span>@endif</td>
                         @if($type === 'financial-groups')<td>{{ $x->type === 'INCOME' ? 'Pemasukan' : 'Pengeluaran' }}</td><td>{{ $x->sort_order }}</td>@endif
-                        @if($type === 'accounts')<td>{{ $x->financialGroup?->name ?? '-' }}</td>@endif
+                        @if($type === 'accounts')
+                            <td>{{ $x->financialGroup?->name ?? ($x->type === 'REVENUE' ? 'Mengikuti penjamin' : '-') }}</td>
+                        @endif
                         <td>{{ $x->is_active ? 'Active' : 'Inactive' }}</td>
                         @if($canManageMaster)
                             <td><div class="actions">
