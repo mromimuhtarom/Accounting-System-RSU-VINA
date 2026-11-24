@@ -12,7 +12,7 @@
 
 <div class="card">
     <form class="form-grid" method="GET" action="{{ route($routePrefix . '.index') }}">
-        <div class="field"><label>Cari No. Transaksi / Keterangan / Kategori</label><input name="q" value="{{request('q')}}" placeholder="Ketik untuk mencari pengeluaran..."></div><div class="field">
+        <div class="field"><label>Cari No. Transaksi / Keterangan / COA</label><input name="q" value="{{request('q')}}" placeholder="Ketik untuk mencari pengeluaran..."></div><div class="field">
             <label>Dari Tanggal</label>
             <input type="date" name="date_from" value="{{ request('date_from') }}">
         </div>
@@ -35,7 +35,7 @@
                     <th>Tanggal</th>
                     <th>No</th>
                     <th>Jenis</th>
-                    <th>Kategori</th>
+                    <th>COA Pengeluaran</th>
                     <th>Keterangan</th>
                     <th>Kas/Bank</th>
                     <th>Nominal</th>
@@ -55,7 +55,7 @@
                             <span class="muted">Umum</span>
                         @endif
                     </td>
-                    <td>{{ $e->category?->name }}</td>
+                    <td>{{ $e->account ? $e->account->code.' — '.$e->account->name : '—' }}</td>
                     <td>
                         {{ $e->description }}
                         @if($e->expense_type === 'REFERRAL')

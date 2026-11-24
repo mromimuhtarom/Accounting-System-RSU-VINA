@@ -14,7 +14,6 @@ class ReportPdfTest extends ExpenseAccessTest
 {
     private function prepareReport(): void
     {
-        (require database_path('migrations/2026_08_18_000008_create_financial_groups_table.php'))->up();
         foreach (['2026_10_29_000001_create_fixed_asset_module.php', '2026_10_29_000002_index_asset_duplicate_candidates.php', '2026_10_29_000003_support_manual_asset_entry.php', '2026_10_29_000004_support_asset_editing_and_soft_deletes.php'] as $file) {
             (require database_path('migrations/'.$file))->up();
         }
@@ -36,8 +35,8 @@ class ReportPdfTest extends ExpenseAccessTest
         ]);
         Expense::create([
             'expense_no' => 'PDF-EXP', 'expense_date' => '2026-10-16',
-            'expense_type' => 'GENERAL', 'expense_category_id' => DB::table('expense_categories')->value('id'),
-            'chart_account_id' => DB::table('expense_categories')->value('expense_account_id'),
+            'expense_type' => 'GENERAL',
+            'chart_account_id' => DB::table('chart_accounts')->where('code', '5001')->value('id'),
             'description' => 'PDF test', 'amount' => 75000, 'status' => 'ACTIVE',
             'created_by' => auth()->id(), 'payment_method' => 'CASH',
             'cash_bank_account_id' => DB::table('cash_bank_accounts')->value('id'),

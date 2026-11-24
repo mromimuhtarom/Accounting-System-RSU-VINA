@@ -113,7 +113,10 @@
         });
         table.dataset.cardsReady = 'true';
     });
-    const tableRegions = [];
+    const tableRegions = new Map();
+    const tableObserver = typeof ResizeObserver === 'function'
+        ? new ResizeObserver(entries => entries.forEach(({target}) => tableRegions.get(target)?.()))
+        : null;
     document.querySelectorAll('.app-shell table').forEach(table => {
         if (table.closest('.table-wrap,.table-responsive')) return;
         const wrapper = document.createElement('div');
@@ -140,11 +143,11 @@
                 if (!region.hasAttribute('aria-label')) region.setAttribute('aria-label', 'Tabel data yang dapat digeser');
             } else region.removeAttribute('tabindex');
         }
-        tableRegions.push(refresh);
-        if (typeof ResizeObserver === 'function') new ResizeObserver(refresh).observe(region);
+        tableRegions.set(region, refresh);
+        tableObserver?.observe(region);
         refresh();
     });
-    window.addEventListener('resize', () => tableRegions.forEach(refresh => refresh()));
+    if (!tableObserver) window.addEventListener('resize', () => tableRegions.forEach(refresh => refresh()));
 
     const sidebar = document.getElementById('sidebar');
     const shell = document.querySelector('.app-shell');

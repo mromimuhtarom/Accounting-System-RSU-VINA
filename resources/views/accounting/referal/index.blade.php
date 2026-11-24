@@ -24,7 +24,7 @@
             <tr>
                 <td>{{ $e->expense_date->format('d-m-Y') }}</td>
                 <td>{{ $e->expense_no }}</td>
-                <td>{{ $e->category->name }}</td>
+                <td>{{ $e->account?->name }}</td>
                 <td>{{ $e->description }}</td>
                 <td>{{ $e->cashBankAccount->name }}</td>
                 <td class="money">Rp {{ number_format($e->amount,0,',','.') }}</td>

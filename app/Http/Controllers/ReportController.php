@@ -22,12 +22,12 @@ class ReportController extends Controller
         $start = CarbonImmutable::create($year, $month, 1)->startOfMonth();
         $end = $start->endOfMonth();
 
-        $receipts = Receipt::with(['account', 'serviceUnit', 'guarantor'])
+        $receipts = Receipt::with(['account.financialGroup', 'serviceUnit', 'guarantor'])
             ->where('status', 'ACTIVE')
             ->whereBetween('transaction_date', [$start->toDateString(), $end->toDateString()])
             ->get();
 
-        $expenses = Expense::with('category')
+        $expenses = Expense::with('account:id,name,financial_group_id')
             ->where('status', 'ACTIVE')
             ->whereBetween('expense_date', [$start->toDateString(), $end->toDateString()])
             ->get();
@@ -37,7 +37,7 @@ class ReportController extends Controller
         $expenseGroups = FinancialGroup::where('type', 'EXPENSE')->where('is_active', true)
             ->orderBy('sort_order')->orderBy('name')->get();
 
-        $expenseGroups = $this->includeUnmappedReferralGroup($expenseGroups, $expenses);
+        $expenseGroups = $this->includeUnmappedExpenseGroup($expenseGroups, $expenses);
         $referralSummary = app(\App\Services\ReferralSummary::class)->rows($start->toDateString(), $end->toDateString());
         $income = $this->buildMonthlyIncome($incomeGroups, $receipts);
         $expense = $this->buildMonthlyExpense($expenseGroups, $expenses);
@@ -79,12 +79,12 @@ class ReportController extends Controller
         $start = CarbonImmutable::create($year, 1, 1)->startOfYear();
         $end = $start->endOfYear();
 
-        $receipts = Receipt::with(['account', 'serviceUnit', 'guarantor'])
+        $receipts = Receipt::with(['account.financialGroup', 'serviceUnit', 'guarantor'])
             ->where('status', 'ACTIVE')
             ->whereBetween('transaction_date', [$start->toDateString(), $end->toDateString()])
             ->get();
 
-        $expenses = Expense::with('category')
+        $expenses = Expense::with('account:id,name,financial_group_id')
             ->where('status', 'ACTIVE')
             ->whereBetween('expense_date', [$start->toDateString(), $end->toDateString()])
             ->get();
@@ -94,7 +94,7 @@ class ReportController extends Controller
         $expenseGroups = FinancialGroup::where('type', 'EXPENSE')->where('is_active', true)
             ->orderBy('sort_order')->orderBy('name')->get();
 
-        $expenseGroups = $this->includeUnmappedReferralGroup($expenseGroups, $expenses);
+        $expenseGroups = $this->includeUnmappedExpenseGroup($expenseGroups, $expenses);
         $referralSummary = app(\App\Services\ReferralSummary::class)->rows($start->toDateString(), $end->toDateString());
         $income = $this->buildYearlyIncome($incomeGroups, $receipts);
         $expense = $this->buildYearlyExpense($expenseGroups, $expenses);
@@ -135,39 +135,34 @@ class ReportController extends Controller
         $isIncome = $kind === 'income';
         $groups = FinancialGroup::where('type', $isIncome ? 'INCOME' : 'EXPENSE')
             ->where('is_active', true)->orderBy('sort_order')->get();
-        if (!$isIncome) {
-            $groups = $this->includeUnmappedReferralGroup($groups, Expense::with('category')->where('expense_type', 'REFERRAL')
-                ->where('status', 'ACTIVE')->whereBetween('expense_date', [$start, $end])->get());
-        }
-        $selectedGroup = null;
-        if ($groupCode !== 'all') {
-            $selectedGroup = $groups->firstWhere('code', $groupCode);
-            abort_unless($selectedGroup, 404, 'Kelompok laporan tidak ditemukan.');
-        }
         $source = $isIncome
-            ? Receipt::with(['account', 'guarantor', 'serviceUnit', 'cashier'])
+            ? Receipt::with(['account.financialGroup', 'guarantor', 'serviceUnit', 'cashier'])
                 ->where('status', 'ACTIVE')->whereBetween('transaction_date', [$start, $end])->get()
-            : Expense::with(['category.financialGroup', 'account'])
+            : Expense::with(['account.financialGroup'])
                 ->where('status', 'ACTIVE')->whereBetween('expense_date', [$start, $end])->get();
-        $rows = $source->filter(function ($record) use ($isIncome, $selectedGroup, $groups) {
+        if (!$isIncome) {
+            $groups = $this->includeUnmappedExpenseGroup($groups, $source);
+        }
+        $selectedGroup = $groupCode === 'all' ? null : $groups->firstWhere('code', $groupCode === 'REFERRAL_UNMAPPED' ? 'EXP_UNMAPPED' : $groupCode);
+        abort_if($groupCode !== 'all' && !$selectedGroup, 404, 'Kelompok laporan tidak ditemukan.');
+        $groupIds = $groups->keyBy('id');
+        $rows = $source->filter(function ($record) use ($isIncome, $selectedGroup, $groups, $groupIds) {
             if ($isIncome) {
                 return $selectedGroup
                     ? $this->receiptBelongsToIncomeGroup($record, $selectedGroup)
                     : $groups->contains(fn ($group) => $this->receiptBelongsToIncomeGroup($record, $group));
             }
-            $unmappedReferral = $record->expense_type === 'REFERRAL'
-                && !$groups->where('id', '!=', -1)->contains('id', $record->category?->financial_group_id);
-            return $selectedGroup
-                ? ($selectedGroup->id === -1 ? $unmappedReferral : (int) ($record->category?->financial_group_id ?? 0) === (int) $selectedGroup->id)
-                : ($unmappedReferral || $groups->contains(fn ($group) => (int) ($record->category?->financial_group_id ?? 0) === (int) $group->id));
+            $id = (int) ($record->account?->financial_group_id ?? 0);
+            $id = $groupIds->has($id) ? $id : -1;
+            return !$selectedGroup || $id === (int) $selectedGroup->id;
         })->sortByDesc(fn ($record) => ($isIncome ? $record->transaction_date : $record->expense_date) . sprintf('%012d', $record->id))->values();
         $total = (float) $rows->sum('amount');
         $chartRows = $rows->groupBy(function ($record) use ($isIncome, $selectedGroup, $groups) {
             if (!$selectedGroup) {
-                if (!$isIncome) return $record->category?->financialGroup?->name ?? 'Tanpa kelompok';
+                if (!$isIncome) return $record->account?->financialGroup?->name ?? 'Tanpa kelompok';
                 return $groups->first(fn ($group) => $this->receiptBelongsToIncomeGroup($record, $group))?->name ?? 'Tanpa kelompok';
             }
-            if (!$isIncome) return $record->category?->name ?? 'Tanpa kategori';
+            if (!$isIncome) return $record->account?->name ?? 'Tanpa COA';
             if (in_array($selectedGroup->code, ['REV_BPJS', 'REV_GUARANTOR'], true)) {
                 $type = strtoupper(trim((string) $record->service_type));
                 $service = in_array($type, ['RAWAT_JALAN', 'RJ', 'BPJS_RJ'], true) ? 'Rawat Jalan'
@@ -195,7 +190,7 @@ class ReportController extends Controller
 
     public function expense(Request $r)
     {
-        $q = Expense::with(['category', 'account', 'cashBankAccount'])->where('status', 'ACTIVE');
+        $q = Expense::with(['account:id,name'])->where('status', 'ACTIVE');
         $this->dateFilter($q, $r, 'expense_date');
         $total = (clone $q)->sum('amount');
         $rows = $q->orderBy('expense_date')->paginate(10)->withQueryString();
@@ -300,10 +295,11 @@ class ReportController extends Controller
         });
     }
 
-    private function includeUnmappedReferralGroup(Collection $groups, Collection $expenses): Collection
+    private function includeUnmappedExpenseGroup(Collection $groups, Collection $expenses): Collection
     {
-        if ($expenses->contains(fn ($e) => $e->expense_type === 'REFERRAL' && !$groups->contains('id', $e->category?->financial_group_id))) {
-            $groups->push((object) ['id'=>-1, 'code'=>'REFERRAL_UNMAPPED', 'name'=>'Referral (belum dipetakan ke kelompok laporan)']);
+        $groupIds = $groups->keyBy('id');
+        if ($expenses->contains(fn ($e) => !$groupIds->has((int) ($e->account?->financial_group_id ?? 0)))) {
+            $groups->push((object) ['id'=>-1, 'code'=>'EXP_UNMAPPED', 'name'=>'Pengeluaran tanpa grup laporan']);
         }
         return $groups;
     }
@@ -315,7 +311,7 @@ class ReportController extends Controller
             $groupRows = $expensesByGroup->get((int) $group->id, collect());
 
             $details = $groupRows
-                ->groupBy(fn ($expense) => $expense->category?->name ?? 'Tanpa Kategori')
+                ->groupBy(fn ($expense) => $expense->account?->name ?? 'Tanpa COA')
                 ->map(fn ($items, $label) => ['label' => $label, 'amount' => (float) $items->sum('amount')])
                 ->sortBy('label')
                 ->values();
@@ -381,7 +377,7 @@ class ReportController extends Controller
             $groupRows = $expensesByGroup->get((int) $group->id, collect());
 
             $details = $groupRows
-                ->groupBy(fn ($expense) => $expense->category?->name ?? 'Tanpa Kategori')
+                ->groupBy(fn ($expense) => $expense->account?->name ?? 'Tanpa COA')
                 ->map(function ($items, $label) {
                     $months = array_fill(1, 12, 0.0);
                     foreach ($items as $item) {
@@ -415,8 +411,8 @@ class ReportController extends Controller
     {
         $groupIds = $groups->where('id', '!=', -1)->keyBy('id');
         return $expenses->groupBy(function ($expense) use ($groupIds) {
-            $id = (int) ($expense->category?->financial_group_id ?? 0);
-            return $expense->expense_type === 'REFERRAL' && !$groupIds->has($id) ? -1 : $id;
+            $id = (int) ($expense->account?->financial_group_id ?? 0);
+            return $groupIds->has($id) ? $id : -1;
         });
     }
 
@@ -440,6 +436,11 @@ class ReportController extends Controller
     {
         // Prioritaskan jenis PENJAMIN, karena data historis BPJS punya COA
         // Pendapatan Rawat Inap/Poli dan sebelumnya salah masuk REV_SERVICE.
+        $group = $receipt->account?->financialGroup;
+        if ($group?->type === 'INCOME' && $group->is_active) {
+            return $group->code;
+        }
+
         $guarantor = $receipt->guarantor;
         if ($guarantor && ($guarantor->is_bpjs || $guarantor->category === 'BPJS')) {
             return 'REV_BPJS';

@@ -12,7 +12,7 @@ class BatchTransactionTest extends ExpenseAccessTest
     {
         $account = ChartAccount::create(['code'=>'EXP-BATCH', 'name'=>'Beban Batch', 'type'=>'EXPENSE', 'normal_balance'=>'DEBIT']);
         $common = $this->expenseRow(['chart_account_id' => $account->id]);
-        unset($common['description'], $common['amount'], $common['expense_category_id']);
+        unset($common['description'], $common['amount']);
         $this->get(route('cashier.expenses.create', ['multiple'=>1, 'grouped'=>1]))->assertOk()
             ->assertSee('name="common[chart_account_id]"', false)
             ->assertDontSee('name="rows[0][chart_account_id]"', false)
@@ -22,8 +22,7 @@ class BatchTransactionTest extends ExpenseAccessTest
             ['description'=>'PT Rincian B', 'amount'=>200000],
         ]])->assertSessionHasNoErrors();
         $this->assertSame(2, Expense::count());
-        $this->assertSame(1, Expense::distinct()->count('expense_category_id'));
-        $this->assertSame(1, $account->expenseCategories()->count());
+        $this->assertSame(1, Expense::distinct()->count('chart_account_id'));
         $this->assertEquals(300000, Expense::sum('amount'));
         $receipt = $this->receiptRow();
         unset($receipt['notes'], $receipt['amount']);
@@ -52,7 +51,7 @@ class BatchTransactionTest extends ExpenseAccessTest
 
     private function expenseRow(array $overrides = []): array
     {
-        return array_replace(['expense_date'=>'2026-10-28', 'expense_category_id'=>DB::table('expense_categories')->value('id'),
+        return array_replace(['expense_date'=>'2026-10-28', 'chart_account_id'=>ChartAccount::where('code', '5001')->value('id'),
             'description'=>'Pengeluaran batch', 'amount'=>150000, 'payment_method'=>'CASH',
             'cash_bank_account_id'=>DB::table('cash_bank_accounts')->value('id')], $overrides);
     }

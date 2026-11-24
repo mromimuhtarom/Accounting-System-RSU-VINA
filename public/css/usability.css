@@ -142,6 +142,12 @@ html[data-reading-size=large]{--reading-size:18px;--reading-small:16px}
   .app-shell .top-user{gap:8px}.app-shell .top-user .avatar{display:none}.app-shell .user-name,.app-shell .user-role{display:none}
   .app-shell .content{padding:18px 14px 32px}
   .app-shell .card{padding:18px;overflow-x:visible}
+  .app-shell :is(.main,.content,.card,.form-grid,.field,.page-head,.master-nav){min-inline-size:0}
+  .app-shell :is(.master-nav,.coa-filter){display:flex;flex-wrap:wrap;gap:8px}
+  .app-shell :is(.master-nav,.coa-filter)>a{flex:1 1 125px;text-align:center;white-space:normal}
+  .app-shell :is(.field input,.field select,.field textarea){max-inline-size:100%}
+  .app-shell .transaction-table :is(th,td):last-child{position:static;box-shadow:none}
+  .app-shell :is(.table-wrap,.table-responsive,.yearly-table-wrap){overscroll-behavior-inline:contain}
   .app-shell .form-grid{grid-template-columns:minmax(0,1fr)}
   .app-shell .reading-controls{padding:12px;gap:8px}.app-shell .reading-controls>strong{flex-basis:100%}
   .app-shell .page-head{flex-direction:column;align-items:stretch}

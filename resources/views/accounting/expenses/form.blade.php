@@ -53,7 +53,6 @@
                     @endforeach
                 </select>
                 @error('chart_account_id') <span class="expense-error">{{ $message }}</span> @enderror
-                @error('expense_category_id') <span class="expense-error">{{ $message }}</span> @enderror
             </div>
             <div class="field expense-wide">
                 @include('transactions.description-picker', ['descriptionField'=>'description'])

@@ -7,7 +7,7 @@ use App\Http\Controllers\Accounting\ReceiptController;
 use App\Models\CashBankAccount;
 use App\Models\ChartAccount;
 use App\Models\Expense;
-use App\Models\ExpenseCategory;
+
 use App\Models\Guarantor;
 use App\Models\Receipt;
 use Illuminate\Http\Request;
@@ -33,7 +33,7 @@ class SmartExcelImport
 
         return $module === 'receipts'
             ? array_merge(['transaction_date' => 'Tanggal|Tanggal Transaksi|Date', 'chart_account_id' => 'Akun|Kode COA|COA|Akun Pendapatan', 'notes' => 'Keterangan|Deskripsi|Description', 'doctor_name' => 'Dokter', 'hd' => 'HD', 'rs' => 'RS', 'transaction_no' => 'Nomor Transaksi|No Transaksi|Transaction No'], $common)
-            : array_merge(['expense_date' => 'Tanggal|Tanggal Transaksi|Date', 'expense_category_id' => 'Kategori|Kategori Pengeluaran|Category', 'description' => 'Keterangan|Deskripsi|Description', 'reference_no' => 'Referensi|No Referensi', 'expense_no' => 'Nomor Transaksi|No Transaksi|Expense No'], array_diff_key($common, array_flip(['guarantor_id', 'service_type'])));
+            : array_merge(['expense_date' => 'Tanggal|Tanggal Transaksi|Date', 'chart_account_id' => 'COA|Kode COA|Kode|Akun|Kategori|Kategori Pengeluaran|Category', 'description' => 'Keterangan|Deskripsi|Description', 'reference_no' => 'Referensi|No Referensi', 'expense_no' => 'Nomor Transaksi|No Transaksi|Expense No'], array_diff_key($common, array_flip(['guarantor_id', 'service_type'])));
     }
 
     public function read(string $path): array
@@ -84,16 +84,30 @@ class SmartExcelImport
     {
         $mapping = [];
         $used = [];
-        foreach ($headers as $i => $header) {
-            foreach ($this->fields($module) as $field => $aliases) {
-                if (! isset($used[$field]) && in_array($this->normalize($header), array_map($this->normalize(...), array_merge([$field], explode('|', $aliases))), true)) {
-                    $mapping[$i] = $field;
-                    $used[$field] = true;
+        $aliasesByHeader = [];
+        foreach ($this->fields($module) as $field => $aliases) {
+            foreach ([$field, ...explode('|', $aliases)] as $alias) {
+                $aliasesByHeader[$this->normalize($alias)] ??= $field;
+            }
+        }
+        $normalized = array_map($this->normalize(...), $headers);
+        if ($module === 'expenses') {
+            foreach ($normalized as $i => $header) {
+                if (in_array($header, ['coa', 'kodecoa', 'chartaccountid'], true)) {
+                    $mapping[$i] = 'chart_account_id';
+                    $used['chart_account_id'] = true;
                     break;
                 }
             }
         }
-
+        foreach ($normalized as $i => $header) {
+            $field = $aliasesByHeader[$header] ?? null;
+            if ($field !== null && !isset($used[$field])) {
+                $mapping[$i] = $field;
+                $used[$field] = true;
+            }
+        }
+        ksort($mapping);
         return $mapping;
     }
 
@@ -110,7 +124,7 @@ class SmartExcelImport
                 ? Guarantor::whereIn('category', Guarantor::INSURANCE_CATEGORIES)->get()
                 : Guarantor::all(),
         ] : [
-            'expense_category_id' => ExpenseCategory::where('is_active', true)->where('code', '!=', 'REFERAL')->whereHas('expenseAccount', fn ($q) => $q->where('is_active', true)->where('type', 'EXPENSE'))->get(),
+            'chart_account_id' => ChartAccount::where('is_active', true)->where('type', 'EXPENSE')->where('is_referral', false)->get(['id', 'code', 'name']),
             'cash_bank_account_id' => CashBankAccount::where('is_active', true)->get(),
         ];
     }
@@ -288,7 +302,7 @@ class SmartExcelImport
             foreach (['expense_date','referral_recipient_id','referral_medical_record_no','referral_procedure','amount','cash_bank_account_id'] as $key) $model->where($key, $data[$key] ?? null);
             return $model->where('expense_type', 'REFERRAL')->exists();
         }
-        $keys = $receipt ? ['transaction_date', 'chart_account_id', 'notes', 'amount'] : ['expense_date', 'expense_category_id', 'description', 'amount', 'cash_bank_account_id'];
+        $keys = $receipt ? ['transaction_date', 'chart_account_id', 'notes', 'amount'] : ['expense_date', 'chart_account_id', 'description', 'amount', 'cash_bank_account_id'];
         foreach ($keys as $key) {
             $model->where($key, $data[$key] ?? null);
         }

@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\ChartAccount;
 use App\Models\Expense;
-use App\Models\ExpenseCategory;
+
 use App\Models\JournalEntry;
 use App\Models\Receipt;
 use App\Services\SmartExcelImport;
@@ -44,7 +44,7 @@ class SmartExcelImportTest extends ExpenseAccessTest
 
     private function expenseRows(): array
     {
-        return [['Nominal', 'Keterangan', 'Kas Bank', 'Metode Pembayaran', 'Kategori', 'Tanggal Transaksi'], ['150.000,50', 'Import uji', 'KAS', 'CASH', 'UMUM', '25/10/2026']];
+        return [['Nominal', 'Keterangan', 'Kas Bank', 'Metode Pembayaran', 'Kategori', 'Tanggal Transaksi'], ['150.000,50', 'Import uji', 'KAS', 'CASH', '5001', '25/10/2026']];
     }
 
     public function test_smart_excel_cashier_can_import_both_modules(): void
@@ -178,7 +178,7 @@ class SmartExcelImportTest extends ExpenseAccessTest
         $rows[1][4] = 'Kategori belum cocok';
         $response = $this->upload($rows)->assertOk()->assertSee('Error');
         $this->assertSame('amount', $response->viewData('mapping')[0]);
-        $payload = ['action' => 'preview', 'token' => $response->viewData('token'), 'mapping' => $response->viewData('mapping'), 'overrides' => [1 => ['expense_category_id' => (string) ExpenseCategory::first()->id]]];
+        $payload = ['action' => 'preview', 'token' => $response->viewData('token'), 'mapping' => $response->viewData('mapping'), 'overrides' => [1 => ['chart_account_id' => (string) ChartAccount::where('code', '5001')->value('id')]]];
         $this->post(route('accounting.excel-import', ['module' => 'expenses']), $payload)->assertOk()->assertSee('Valid');
         $payload['action'] = 'confirm';
         $this->post(route('accounting.excel-import', ['module' => 'expenses']), $payload)->assertOk();

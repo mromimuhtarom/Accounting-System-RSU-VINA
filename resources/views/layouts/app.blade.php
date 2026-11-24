@@ -46,7 +46,7 @@
     .sidebar-toggle-btn{position:relative;z-index:2}
 }
 </style>
-<link rel="stylesheet" href="{{ asset('public/css/usability.css') }}?v=20261030-3">
+<link rel="stylesheet" href="{{ asset('public/css/usability.css') }}?v=20261124-coa">
 <link rel="stylesheet" href="{{ asset('public/css/system-assistant.css') }}?v=20261030-profile-1">
 </head>
 <body>
@@ -173,7 +173,7 @@
 <script src="{{ asset('public/js/searchable-select.js') }}?v=20261113-perf-2"></script>
 @stack('scripts')
 <script src="{{ asset('public/js/form-controls.js') }}?v=20261113-perf-2"></script>
-<script src="{{ asset('public/js/usability.js') }}?v=20261030-3" defer></script>
+<script src="{{ asset('public/js/usability.js') }}?v=20261124-coa" defer></script>
 <script src="{{ asset('public/js/idle-session.js') }}?v=20261114-remember"
     data-keep-signed-in="{{ session('keep_signed_in', false) ? '1' : '0' }}"
     data-activity-url="{{ route('session.activity') }}" data-logout-url="{{ route('logout') }}"

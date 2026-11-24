@@ -16,17 +16,17 @@
 <div class="rsd-wrap">
  <div class="rsd-heading"><div><h1 class="page-title">Rincian {{ $title }}</h1><p class="page-sub">{{ $monthNames[$month] }} {{ $year }} · {{ $isIncome ? 'Pemasukan' : 'Pengeluaran' }} · Data transaksi aktif</p></div><a class="rsd-back" href="{{route('reports.monthly',['month'=>$month,'year'=>$year])}}">← Kembali ke Laporan Bulanan</a></div>
  <div class="rsd-summary"><div class="rsd-card"><div class="rsd-sub">Total {{ $title }}</div><div class="rsd-kpi">Rp {{number_format($total,0,',','.')}}</div></div><div class="rsd-card"><div class="rsd-sub">Jumlah transaksi</div><div class="rsd-kpi">{{number_format($rows->count(),0,',','.')}}</div></div><div class="rsd-card"><div class="rsd-sub">Periode</div><div class="rsd-kpi">{{ $monthNames[$month] }}</div><div class="rsd-sub">{{ $year }}</div></div></div>
- <div class="rsd-card" style="margin-bottom:18px"><h3>Diagram Batang — {{ $title }}</h3><p class="rsd-sub">Menurut {{ $selectedGroup ? 'rincian akun / jenis pelayanan / kategori' : 'kelompok laporan' }}. Setiap nominal berasal dari transaksi aktif bulan terpilih.</p>
+ <div class="rsd-card" style="margin-bottom:18px"><h3>Diagram Batang — {{ $title }}</h3><p class="rsd-sub">Menurut {{ $selectedGroup ? 'rincian akun atau jenis pelayanan' : 'kelompok laporan' }}. Setiap nominal berasal dari transaksi aktif bulan terpilih.</p>
  @forelse($chartRows as $bar)
   <div class="rsd-row"><span class="rsd-bar-label">{{ $bar['label'] }}</span><strong>Rp {{number_format($bar['amount'],0,',','.')}} · {{ $bar['count'] }} transaksi</strong></div>
   <div class="rsd-track"><div class="rsd-fill" style="width:{{min(100,100*$bar['amount']/$largest)}}%;background:{{ $isIncome ? '#039d71' : '#e87955' }}"></div></div>
  @empty <p>Belum ada transaksi untuk pilihan ini.</p> @endforelse
  </div>
- <div class="rsd-card"><h3>Daftar Transaksi {{ $title }}</h3><p class="rsd-sub">Semua hasil dihitung dalam total; tabel ditampilkan 30 transaksi per halaman.</p><div class="rsd-table-wrap"><table class="rsd-table"><thead><tr><th>Tanggal</th><th>No. Transaksi</th><th>Kategori / Akun</th><th>Keterangan</th><th>Penjamin / Metode</th><th style="text-align:right">Nominal</th></tr></thead><tbody>
+ <div class="rsd-card"><h3>Daftar Transaksi {{ $title }}</h3><p class="rsd-sub">Semua hasil dihitung dalam total; tabel ditampilkan 30 transaksi per halaman.</p><div class="rsd-table-wrap"><table class="rsd-table"><thead><tr><th>Tanggal</th><th>No. Transaksi</th><th>COA</th><th>Keterangan</th><th>Penjamin / Metode</th><th style="text-align:right">Nominal</th></tr></thead><tbody>
  @forelse($paged as $item)
  <tr><td>{{ $isIncome ? optional($item->transaction_date)->format('d/m/Y') : optional($item->expense_date)->format('d/m/Y') }}</td>
  <td>{{ $isIncome ? $item->transaction_no : $item->expense_no }}</td>
- <td>{{ $isIncome ? ($item->account?->name ?? 'Tanpa akun') : ($item->category?->name ?? 'Tanpa kategori') }}</td>
+ <td>{{ $item->account?->name ?? 'Tanpa akun' }}</td>
  <td>{{ $isIncome ? ($item->notes ?: ($item->patient_name ?: '-')) : $item->description }}</td>
  <td>{{ $isIncome ? ($item->guarantor?->name ?? 'Belum ada penjamin') : $item->payment_method }}</td>
  <td class="money">Rp {{number_format((float)$item->amount,0,',','.')}}</td></tr>

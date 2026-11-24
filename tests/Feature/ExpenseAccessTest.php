@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\{CashBankAccount, ChartAccount, Expense, ExpenseCategory, Receipt, User};
+use App\Models\{CashBankAccount, ChartAccount, Expense, Receipt, User};
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\{DB, Schema};
 use Tests\TestCase;
@@ -11,7 +11,7 @@ class ExpenseAccessTest extends TestCase
 {
     private User $cashier;
     private User $owner;
-    private ExpenseCategory $category;
+    private ChartAccount $expenseAccount;
     private CashBankAccount $cash;
 
     protected function setUp(): void
@@ -58,17 +58,27 @@ class ExpenseAccessTest extends TestCase
         $this->cashier->roles()->attach($role);
         $account = ChartAccount::create(['code' => '5001', 'name' => 'Beban', 'type' => 'EXPENSE', 'normal_balance' => 'DEBIT']);
         $cashAccount = ChartAccount::create(['code' => '1001', 'name' => 'Kas', 'type' => 'ASSET', 'normal_balance' => 'DEBIT']);
-        $this->category = ExpenseCategory::create(['code' => 'UMUM', 'name' => 'Umum', 'expense_account_id' => $account->id]);
+        $this->expenseAccount = $account;
+        DB::table('expense_categories')->insert(['code' => 'UMUM', 'name' => 'Umum', 'expense_account_id' => $account->id]);
+        (require database_path('migrations/2026_08_18_000008_create_financial_groups_table.php'))->up();
+        if (!$this->usesLegacyExpenseSchema()) {
+            (require database_path('migrations/2026_11_24_000007_move_report_groups_to_coa.php'))->up();
+        }
         $this->cash = CashBankAccount::create(['code' => 'KAS', 'name' => 'Kas utama', 'type' => 'CASH', 'chart_account_id' => $cashAccount->id]);
         $this->actingAs($this->cashier);
+    }
+
+    protected function usesLegacyExpenseSchema(): bool
+    {
+        return false;
     }
 
     private function expense(array $overrides = []): Expense
     {
         return Expense::create(array_merge([
             'expense_no' => 'EXP-'.uniqid(), 'expense_date' => '2026-10-25',
-            'expense_type' => 'GENERAL', 'expense_category_id' => $this->category->id,
-            'chart_account_id' => $this->category->expense_account_id, 'description' => 'Belanja perlengkapan',
+            'expense_type' => 'GENERAL',
+            'chart_account_id' => $this->expenseAccount->id, 'description' => 'Belanja perlengkapan',
             'amount' => 150000, 'payment_method' => 'CASH', 'cash_bank_account_id' => $this->cash->id,
             'created_by' => $this->owner->id, 'status' => 'ACTIVE',
         ], $overrides));
@@ -104,7 +114,6 @@ class ExpenseAccessTest extends TestCase
 
     public function test_single_expense_uses_coa_without_manual_category_setup(): void
     {
-        (require database_path('migrations/2026_08_18_000008_create_financial_groups_table.php'))->up();
         $account = ChartAccount::create(['code'=>'EXP-NEW', 'name'=>'COA Beban Baru', 'type'=>'EXPENSE', 'normal_balance'=>'DEBIT']);
         $this->get(route('cashier.expenses.create'))->assertOk()
             ->assertSee('EXP-NEW')->assertSee('name="chart_account_id"', false)
@@ -114,11 +123,10 @@ class ExpenseAccessTest extends TestCase
         $this->post(route('cashier.expenses.store'), $data)->assertSessionHasNoErrors();
         $expense = Expense::firstOrFail();
         $this->assertSame($account->id, $expense->chart_account_id);
-        $this->assertEquals('EXP_OPERATIONAL', $expense->category->financialGroup->code);
+        $this->assertFalse(Schema::hasTable('expense_categories'));
 
         $this->put(route('cashier.expenses.update', $expense), $data)->assertSessionHasNoErrors();
-        $this->assertSame($expense->expense_category_id, $expense->fresh()->expense_category_id);
-        $this->assertSame(1, $account->expenseCategories()->count());
+        $this->assertSame($expense->chart_account_id, $expense->fresh()->chart_account_id);
     }
 
     public function test_cashier_can_edit_posted_expense_and_journal_stays_balanced(): void
@@ -128,10 +136,9 @@ class ExpenseAccessTest extends TestCase
         $this->get(route('cashier.expenses.edit', $expense))->assertOk()
             ->assertSee('public/js/searchable-select.js')->assertSee('public/css/searchable-select.css');
         $newAccount = ChartAccount::create(['code' => '5002', 'name' => 'Beban baru', 'type' => 'EXPENSE', 'normal_balance' => 'DEBIT']);
-        $newCategory = ExpenseCategory::create(['code' => 'BARU', 'name' => 'Baru', 'expense_account_id' => $newAccount->id]);
         $newCash = CashBankAccount::create(['code' => 'KAS2', 'name' => 'Kas kedua', 'type' => 'CASH', 'chart_account_id' => $this->cash->chart_account_id]);
         $this->put(route('cashier.expenses.update', $expense), [
-            'expense_date' => '2026-10-24', 'expense_category_id' => $newCategory->id,
+            'expense_date' => '2026-10-24', 'chart_account_id' => $newAccount->id,
             'description' => 'Koreksi pengeluaran', 'amount' => 275000.50,
             'payment_method' => 'CASH', 'cash_bank_account_id' => $newCash->id,
         ])->assertRedirect(route('cashier.expenses.index'))->assertSessionHasNoErrors();
@@ -162,7 +169,7 @@ class ExpenseAccessTest extends TestCase
         $expense = $this->expense(['created_by' => $this->cashier->id]);
         $journal = $expense->journal()->firstOrFail();
         $this->put(route('cashier.expenses.update', $expense), [
-            'expense_date' => '2026-10-24', 'expense_category_id' => $this->category->id,
+            'expense_date' => '2026-10-24', 'chart_account_id' => $this->expenseAccount->id,
             'description' => 'Koreksi', 'amount' => -1, 'payment_method' => 'CASH',
             'cash_bank_account_id' => $this->cash->id,
         ])->assertSessionHasErrors('amount');
@@ -287,7 +294,7 @@ class ExpenseAccessTest extends TestCase
             $this->get(route('accounting.pengeluaran.index'))->assertOk()->assertSee(route('accounting.pengeluaran.edit', $expense));
             $this->get(route('accounting.pengeluaran.edit', $expense))->assertOk();
             $this->put(route('accounting.pengeluaran.update', $expense), [
-                'expense_date' => '2026-10-25', 'expense_category_id' => $this->category->id,
+                'expense_date' => '2026-10-25', 'chart_account_id' => $this->expenseAccount->id,
                 'description' => 'Koreksi', 'amount' => 200000, 'payment_method' => 'CASH', 'cash_bank_account_id' => $this->cash->id,
             ])->assertSessionHasNoErrors()->assertRedirect(route('accounting.pengeluaran.index'));
             $this->assertSame($this->owner->id, $expense->fresh()->created_by);
@@ -309,7 +316,7 @@ class ExpenseAccessTest extends TestCase
         $expense = $this->expense(['created_by'=>$this->cashier->id]);
         $journalId = $expense->journal()->firstOrFail()->id;
         $this->put(route('cashier.expenses.update',$expense), [
-            'expense_date'=>'2026-10-25','expense_category_id'=>$this->category->id,
+            'expense_date'=>'2026-10-25','chart_account_id'=>$this->expenseAccount->id,
             'description'=>'Koreksi tercatat','amount'=>175000,'payment_method'=>'CASH','cash_bank_account_id'=>$this->cash->id,
         ])->assertSessionHasNoErrors();
         $edit = \App\Models\ActivityLog::where('subject_type',Expense::class)->where('subject_id',$expense->id)->where('action','updated')->firstOrFail();

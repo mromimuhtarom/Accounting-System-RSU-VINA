@@ -9,7 +9,7 @@ use Illuminate\Validation\ValidationException;
 class BatchTransactionService
 {
     public const MAX_ROWS = 20;
-    public const SHARED_FIELDS = ['transaction_date', 'expense_date', 'chart_account_id', 'expense_category_id', 'guarantor_id', 'service_type', 'payment_method', 'cash_bank_account_id', 'referral_recipient_id'];
+    public const SHARED_FIELDS = ['transaction_date', 'expense_date', 'chart_account_id', 'guarantor_id', 'service_type', 'payment_method', 'cash_bank_account_id', 'referral_recipient_id'];
 
     public function store(Request $request, callable $validate, callable $store, string $returnRoute)
     {

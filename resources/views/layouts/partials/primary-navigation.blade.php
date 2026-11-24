@@ -40,7 +40,7 @@
         <details class="bookkeeping-menu" @if(request()->routeIs('accounting.master.*','accounting.referral-recipients.*')) open @endif>
             <summary>Data Pendukung</summary><div class="bookkeeping-links">
             <a class="{{ request()->routeIs('accounting.referral-recipients.*') ? 'active' : '' }}" href="{{ route('accounting.referral-recipients.index') }}">Penerima Referral</a>
-            @foreach(['accounts'=>'Daftar Akun (COA)','cash-banks'=>'Kas & Bank','expense-categories'=>'Kategori Pengeluaran','units'=>'Unit Pelayanan','guarantors'=>'Penjamin','financial-groups'=>'Group Laporan'] as $key=>$label)
+            @foreach(['accounts'=>'Daftar Akun (COA)','cash-banks'=>'Kas & Bank','units'=>'Unit Pelayanan','guarantors'=>'Penjamin','financial-groups'=>'Group Laporan'] as $key=>$label)
                 <a class="{{ request()->routeIs('accounting.master.*') && request()->route('type')===$key ? 'active' : '' }}" href="{{ route('accounting.master.index',$key) }}">{{ $label }}</a>
             @endforeach
             </div>

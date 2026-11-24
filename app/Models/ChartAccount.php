@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ChartAccount extends Model
 {
-    protected $fillable = ['code', 'name', 'type', 'parent_id', 'normal_balance', 'is_active', 'is_referral'];
+    protected $fillable = ['code', 'name', 'type', 'parent_id', 'normal_balance', 'is_active', 'is_referral', 'financial_group_id'];
 
     protected function casts(): array
     {
@@ -17,7 +17,7 @@ class ChartAccount extends Model
     public function children() { return $this->hasMany(self::class, 'parent_id'); }
     public function serviceUnits() { return $this->hasMany(ServiceUnit::class, 'revenue_account_id'); }
     public function cashBankAccounts() { return $this->hasMany(CashBankAccount::class, 'chart_account_id'); }
-    public function expenseCategories() { return $this->hasMany(ExpenseCategory::class, 'expense_account_id'); }
+    public function financialGroup() { return $this->belongsTo(FinancialGroup::class); }
     public function expenses() { return $this->hasMany(Expense::class, 'chart_account_id'); }
     public function journalLines() { return $this->hasMany(JournalLine::class, 'chart_account_id'); }
 }

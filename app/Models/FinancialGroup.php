@@ -27,8 +27,8 @@ class FinancialGroup extends Model
         return $this->hasMany(Guarantor::class);
     }
 
-    public function expenseCategories()
+    public function accounts()
     {
-        return $this->hasMany(ExpenseCategory::class);
+        return $this->hasMany(ChartAccount::class);
     }
 }

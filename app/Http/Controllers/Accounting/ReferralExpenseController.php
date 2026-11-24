@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Accounting;
 use App\Http\Controllers\Controller;
 use App\Models\CashBankAccount;
 use App\Models\Expense;
-use App\Models\ExpenseCategory;
+
 use App\Services\ReferralAccountService;
 use App\Services\JournalService;
 use Illuminate\Http\Request;
@@ -50,11 +50,9 @@ class ReferralExpenseController extends Controller
         if ($request->exists('rows')) return app(\App\Services\BatchTransactionService::class)->store($request, fn ($row) => $this->validated($row), fn ($row) => $this->store($row), 'accounting.referrals.index');
         $data = $this->validated($request);
         $data['chart_account_id'] = app(ReferralAccountService::class)->resolve()->id;
-        $category = $this->referralCategory($data['chart_account_id']);
 
         $data['expense_no'] = 'REF-' . (string) \Illuminate\Support\Str::ulid();
         $data['expense_type'] = 'REFERRAL';
-        $data['expense_category_id'] = $category->id;
         // COA ditentukan server; input COA dari browser tidak digunakan.
         $data['created_by'] = $request->user()->id;
         $data['status'] = 'ACTIVE';
@@ -98,10 +96,8 @@ class ReferralExpenseController extends Controller
 
         $data = $this->validated($request, $referral->id);
         $data['chart_account_id'] = app(ReferralAccountService::class)->resolve()->id;
-        $category = $this->referralCategory($data['chart_account_id']);
 
         $data['expense_type'] = 'REFERRAL';
-        $data['expense_category_id'] = $category->id;
         // COA ditentukan server; input COA dari browser tidak digunakan.
         $data['description'] = ($data['description'] ?? null)
             ?: 'Pengeluaran referal ' . $data['referral_patient_name'];
@@ -232,17 +228,6 @@ class ReferralExpenseController extends Controller
     {
         $recipient = \App\Models\ReferralRecipient::whereKey($id)->lockForUpdate()->firstOrFail();
         if (!$recipient->is_active && $existing !== $id) throw \Illuminate\Validation\ValidationException::withMessages(['referral_recipient_id'=>'Penerima telah dinonaktifkan. Pilih penerima aktif.']);
-    }
-
-    private function referralCategory(int $accountId): ExpenseCategory
-    {
-        $defaults = ['name'=>'Referal', 'is_active'=>true, 'expense_account_id'=>$accountId];
-        if (\Illuminate\Support\Facades\Schema::hasColumn('expense_categories', 'financial_group_id')) {
-            $defaults['financial_group_id'] = \App\Models\FinancialGroup::where('type', 'EXPENSE')->where('is_active', true)
-                ->orderByRaw("CASE WHEN code = 'EXP_OPERATIONAL' THEN 0 ELSE 1 END")->value('id');
-        }
-        $category = ExpenseCategory::firstOrCreate(['code'=>'REFERAL'], $defaults);
-        return $category;
     }
 
     private function ensureReferral(Expense $expense): void

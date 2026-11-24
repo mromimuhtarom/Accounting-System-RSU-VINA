@@ -164,7 +164,6 @@ class ReferralRecipientTest extends ExpenseAccessTest
 
     public function test_dashboard_reports_and_pdf_include_referral_once_without_rm_in_summary(): void
     {
-        (require database_path('migrations/2026_08_18_000008_create_financial_groups_table.php'))->up();
         (require database_path('migrations/2026_10_24_120000_create_insurance_monthly_claims.php'))->up();
         $role = DB::table('roles')->insertGetId(['application_id'=>DB::table('applications')->value('id'), 'code'=>'ACCOUNTING', 'name'=>'Accounting']);
         auth()->user()->roles()->sync([$role]);
@@ -173,7 +172,7 @@ class ReferralRecipientTest extends ExpenseAccessTest
         $expense = $this->postReferral($recipient, ['amount'=>500000]);
         $before = $expense->getAttributes();
         // Cover legacy/unmapped reporting categories without rewriting old expenses.
-        $expense->category->update(['financial_group_id'=>null]);
+        $expense->account->update(['financial_group_id'=>null]);
         $this->get(route('dashboard', ['tahun'=>2026]))->assertOk()->assertSee('Rekap Pengeluaran Referral per Penerima')
             ->assertSee('Rekap Keuangan')->assertDontSee('RM-RAHASIA-001')->assertViewHas('stats', fn ($s) => (float) $s['expense'] === 500000.0);
         foreach (['monthly'=>['month'=>10,'year'=>2026], 'yearly'=>['year'=>2026]] as $report=>$period) {
@@ -227,7 +226,7 @@ class ReferralRecipientTest extends ExpenseAccessTest
         $recipient = ReferralRecipient::create(['name'=>'Penerima Otomatis']);
         $payload = $this->payload($recipient);
         ChartAccount::where('code', 'REF-TEST')->delete();
-        $payload['chart_account_id'] = DB::table('expense_categories')->value('expense_account_id');
+        $payload['chart_account_id'] = DB::table('chart_accounts')->where('code', '5001')->value('id');
         $payload['receipt_id'] = 99999;
         $this->post(route('accounting.referrals.store'), $payload)->assertSessionHasNoErrors();
         $first = Expense::latest('id')->firstOrFail();

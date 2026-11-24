@@ -48,7 +48,7 @@ class InsuranceExcelController extends Controller
     }
     public function expenses(Request $request)
     {
-        $query = Expense::with(['category','cashBankAccount','account'])->where('expense_type', 'GENERAL');
+        $query = Expense::with(['cashBankAccount','account'])->where('expense_type', 'GENERAL');
         if ($request->filled('date_from')) $query->whereDate('expense_date','>=',$request->date_from);
         if ($request->filled('date_to')) $query->whereDate('expense_date','<=',$request->date_to);
         if ($request->filled('q')) {
@@ -56,16 +56,16 @@ class InsuranceExcelController extends Controller
             $query->where(fn($q) => $q->where('expense_no','like',"%{$term}%")
                 ->orWhere('description','like',"%{$term}%")
                 ->orWhere('reference_no','like',"%{$term}%")
-                ->orWhereHas('category', fn($c)=>$c->where('name','like',"%{$term}%")));
+                ->orWhereHas('account', fn ($a) => $a->where('name', 'like', "%{$term}%")->orWhere('code', 'like', "%{$term}%")));
         }
         $rows = $query->orderByDesc('expense_date')->orderByDesc('id')->get()->map(fn($e, $i) => [
             $i + 1, (string) $e->expense_date, $e->expense_type ?? 'GENERAL',
-            $e->category?->name ?? '', $e->account?->code ?? '', $e->description,
+            $e->account?->name ?? '', $e->account?->code ?? '', $e->description,
             $e->payment_method ?? '', $e->cashBankAccount?->name ?? '', (float) $e->amount,
             $e->status ?? ''
         ])->all();
         return InsuranceExcel::download('Pengeluaran_RSUVE.xlsx',
-            ['No','Tanggal','Jenis','Kategori','COA','Keterangan','Metode','Kas/Bank','Nominal','Status'],
+            ['No','Tanggal','Jenis','Nama COA','COA','Keterangan','Metode','Kas/Bank','Nominal','Status'],
             $rows, 'Data berdasarkan filter halaman Pengeluaran; semua status ditampilkan.');
     }
 }

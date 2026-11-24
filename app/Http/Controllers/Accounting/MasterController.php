@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Accounting;
 use App\Http\Controllers\Controller;
 use App\Models\CashBankAccount;
 use App\Models\ChartAccount;
-use App\Models\ExpenseCategory;
 use App\Models\FinancialGroup;
 use App\Models\Guarantor;
 use App\Models\ServiceUnit;
@@ -22,7 +21,6 @@ class MasterController extends Controller
         'units' => ServiceUnit::class,
         'guarantors' => Guarantor::class,
         'cash-banks' => CashBankAccount::class,
-        'expense-categories' => ExpenseCategory::class,
         'financial-groups' => FinancialGroup::class,
     ];
 
@@ -30,6 +28,9 @@ class MasterController extends Controller
     {
         $this->ensureCanManage($request, $type);
 
+        if ($type === 'expense-categories') {
+            return redirect()->route('accounting.master.index', ['accounts', 'account_type' => 'EXPENSE', 'q' => $request->query('q')]);
+        }
         $model = $this->model($type);
         $sortColumn = in_array($type, ['accounts', 'financial-groups'], true)
             ? 'code'
@@ -42,12 +43,12 @@ class MasterController extends Controller
         }
 
         $query = $model::query()->orderBy($sortColumn)->orderBy('id');
-        $hasFinancialGroup = in_array($type, ['guarantors', 'expense-categories'], true);
+        $hasFinancialGroup = in_array($type, ['guarantors', 'accounts'], true);
         if ($hasFinancialGroup) {
             $query->with('financialGroup:id,name');
         }
         $search = '';
-        if (in_array($type, ['accounts', 'expense-categories'], true)) {
+        if ($type === 'accounts') {
             $keyword = $request->query('q');
             $search = is_string($keyword) ? trim($keyword) : '';
             if ($search !== '') {
@@ -61,8 +62,9 @@ class MasterController extends Controller
             $query->where('is_referral', $request->input('group') === 'referral');
         }
         $accountType = $request->query('account_type');
-        if ($type === 'accounts' && in_array($accountType, ['REVENUE', 'EXPENSE'], true)) {
-            $query->where('type', $accountType);
+        $coaTypeFilter = $type === 'accounts' && in_array($accountType, ['REVENUE', 'EXPENSE'], true) ? $accountType : null;
+        if ($coaTypeFilter !== null) {
+            $query->where('type', $coaTypeFilter);
         }
 
         $items = $query->paginate(10)->withQueryString();
@@ -74,18 +76,18 @@ class MasterController extends Controller
             'type' => $type,
             'items' => $items,
             'search' => $search,
+            'coaTypeFilter' => $coaTypeFilter,
             'editingItem' => $editingItem,
             'lockedCoaIds' => $lockedCoaIds,
-            'accounts' => in_array($type, ['accounts', 'units', 'cash-banks', 'expense-categories'], true)
+            'accounts' => in_array($type, ['accounts', 'units', 'cash-banks'], true)
                 ? ChartAccount::orderBy('code')
                     ->when($type === 'units', fn ($accounts) => $accounts->where('type', 'REVENUE'))
-                    ->when($type === 'expense-categories', fn ($accounts) => $accounts->where('type', 'EXPENSE'))
                     ->get(['id', 'code', 'name', 'type'])
                 : collect(),
-            'financialGroups' => $hasFinancialGroup ? FinancialGroup::where('type', $type === 'guarantors' ? 'INCOME' : 'EXPENSE')
+            'financialGroups' => $hasFinancialGroup ? FinancialGroup::query()->when($type === 'guarantors', fn ($groups) => $groups->where('type', 'INCOME'))
                 ->orderBy('sort_order')
                 ->orderBy('name')
-                ->get(['id', 'name', 'type']) : collect(),
+                ->get(['id', 'name', 'type'])->groupBy('type') : collect(),
         ]);
     }
 
@@ -175,12 +177,9 @@ class MasterController extends Controller
                 'Penerimaan' => fn () => $item->receipts()->exists(),
                 'Pengeluaran' => fn () => $item->expenses()->exists(),
             ],
-            'expense-categories' => [
-                'Pengeluaran' => fn () => $item->expenses()->exists(),
-            ],
             'financial-groups' => [
                 'Penjamin' => fn () => $item->guarantors()->exists(),
-                'Kategori Pengeluaran' => fn () => $item->expenseCategories()->exists(),
+                'COA' => fn () => $item->accounts()->exists(),
             ],
             default => [],
         };
@@ -208,7 +207,6 @@ class MasterController extends Controller
             ['journal_entry_lines', 'chart_account_id', 'Jurnal yang sudah ada'],
             ['service_units', 'revenue_account_id', 'Unit Pelayanan'],
             ['cash_bank_accounts', 'chart_account_id', 'Kas dan Bank'],
-            ['expense_categories', 'expense_account_id', 'Kategori Pengeluaran'],
             ['chart_accounts', 'parent_id', 'COA Turunan'],
             ['insurance_monthly_claims', 'chart_account_id', 'Klaim dan Piutang Asuransi'],
             ['bpjs_claims', 'chart_account_id', 'Klaim BPJS lama'],
@@ -276,9 +274,17 @@ class MasterController extends Controller
                     Rule::notIn(array_filter([$id])),
                 ],
                 'normal_balance' => ['required', 'in:DEBIT,CREDIT'],
+                'financial_group_id' => [
+                    'nullable',
+                    Rule::prohibitedIf(!in_array($request->input('type'), ['REVENUE', 'EXPENSE'], true)),
+                    Rule::exists('financial_groups', 'id')->where('type', $request->input('type') === 'REVENUE' ? 'INCOME' : 'EXPENSE'),
+                ],
                 'is_referral' => ['sometimes', 'boolean', function ($attribute, $value, $fail) use ($request, $id) {
                     if ($value && $request->input('type') !== 'EXPENSE') $fail('COA Referal harus bertipe EXPENSE.');
-                    if ($id && ChartAccount::find($id)?->expenses()->exists() && (bool) $value !== ChartAccount::find($id)->is_referral) $fail('Kelompok COA yang sudah digunakan tidak dapat diubah.');
+                    $account = $id ? ChartAccount::find($id) : null;
+                    if ($account && (bool) $value !== $account->is_referral && $account->expenses()->exists()) {
+                        $fail('Kelompok COA yang sudah digunakan tidak dapat diubah.');
+                    }
                 }],
                 'is_active' => ['required', 'boolean'],
             ]),
@@ -318,17 +324,6 @@ class MasterController extends Controller
                 'bank_name' => ['nullable', 'max:150'],
                 'account_number' => ['nullable', 'max:100'],
                 'chart_account_id' => ['required', 'exists:chart_accounts,id'],
-                'is_active' => ['required', 'boolean'],
-            ]),
-            'expense-categories' => $request->validate([
-                'code' => [
-                    'required',
-                    'max:30',
-                    Rule::unique('expense_categories', 'code')->ignore($id),
-                ],
-                'name' => ['required', 'max:150'],
-                'financial_group_id' => ['required', 'exists:financial_groups,id'],
-                'expense_account_id' => ['required', 'exists:chart_accounts,id'],
                 'is_active' => ['required', 'boolean'],
             ]),
             'financial-groups' => $request->validate([

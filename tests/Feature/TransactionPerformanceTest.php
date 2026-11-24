@@ -3,22 +3,70 @@
 namespace Tests\Feature;
 
 use App\Models\ChartAccount;
-use App\Models\ExpenseCategory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\TestWith;
 
 class TransactionPerformanceTest extends ExpenseAccessTest
 {
+    protected function usesLegacyExpenseSchema(): bool
+    {
+        return in_array($this->name(), [
+            'test_expense_account_migration_updates_coa_and_category',
+            'test_expense_coa_migration_moves_only_expenses_linked_to_the_source_account',
+            'test_expense_category_migration_moves_source_category_and_uses_destination_account',
+            'test_report_groups_migration_preserves_expense_classification',
+        ], true);
+    }
+
+    public function test_report_groups_migration_preserves_expense_classification(): void
+    {
+        $id = DB::table('chart_accounts')->where('code', '5001')->value('id');
+        $category = DB::table('expense_categories')->where('expense_account_id', $id)->first();
+        $expense = DB::table('expenses')->insertGetId([
+            'expense_no' => 'GROUP-MIGRATION', 'expense_date' => '2026-11-24', 'description' => 'Migrasi',
+            'amount' => 12500, 'payment_method' => 'CASH', 'expense_category_id' => $category->id,
+            'chart_account_id' => $id, 'cash_bank_account_id' => DB::table('cash_bank_accounts')->value('id'),
+            'created_by' => DB::table('users')->value('id'),
+        ]);
+        $migration = require database_path('migrations/2026_11_24_000007_move_report_groups_to_coa.php');
+        $migration->up();
+        $migration->up();
+        $this->assertDatabaseHas('chart_accounts', ['id' => $id, 'financial_group_id' => $category->financial_group_id]);
+        $this->assertDatabaseHas('expenses', ['id' => $expense, 'chart_account_id' => $id, 'amount' => 12500]);
+        $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('expenses', 'expense_category_id'));
+        $this->assertFalse(\Illuminate\Support\Facades\Schema::hasTable('expense_categories'));
+    }
+
     public function test_master_coa_can_show_revenue_and_expense_accounts_separately(): void
     {
         $income = ChartAccount::create(['code'=>'TEST-REV', 'name'=>'Kelompok Uji', 'type'=>'REVENUE', 'normal_balance'=>'CREDIT']);
         $expense = ChartAccount::create(['code'=>'TEST-EXP', 'name'=>'Kelompok Uji', 'type'=>'EXPENSE', 'normal_balance'=>'DEBIT']);
 
         foreach ([$income, $expense] as $account) {
-            $this->get(route('accounting.master.index', ['accounts', 'account_type'=>$account->type, 'group'=>'general', 'q'=>'Kelompok Uji']))
+            $page = $this->get(route('accounting.master.index', ['accounts', 'account_type'=>$account->type, 'group'=>'general', 'q'=>'Kelompok Uji']))
                 ->assertOk()->assertSee('COA Pemasukan')->assertSee('COA Pengeluaran')
                 ->assertViewHas('items', fn ($items) => $items->getCollection()->modelKeys() === [$account->id]);
+            $page->assertSee('value="'.$account->type.'" selected', false);
+            $html = new \DOMDocument();
+            $html->loadHTML($page->getContent(), LIBXML_NOERROR | LIBXML_NOWARNING);
+            $xpath = new \DOMXPath($html);
+            $groupType = $account->type === 'REVENUE' ? 'INCOME' : 'EXPENSE';
+            $this->assertSame(3, $xpath->query("//select[@id='coa-financial-group']//option[@data-group-type='$groupType' and not(@disabled)]")->length);
+            $this->assertSame(0, $xpath->query("//select[@id='coa-financial-group']//option[@data-group-type!='$groupType' and not(@disabled)]")->length);
         }
+    }
+
+    public function test_restoring_report_groups_preserves_existing_group_settings(): void
+    {
+        DB::table('financial_groups')->where('code', 'REV_BPJS')->delete();
+        DB::table('financial_groups')->where('code', 'EXP_HR')->update(['name' => 'SDM Khusus', 'is_active' => false]);
+        $migration = require database_path('migrations/2026_11_24_000008_restore_missing_default_report_groups.php');
+        $migration->up();
+        $migration->up();
+        $this->assertDatabaseHas('financial_groups', ['code' => 'REV_BPJS', 'type' => 'INCOME', 'is_active' => true]);
+        $this->assertDatabaseHas('financial_groups', ['code' => 'EXP_HR', 'name' => 'SDM Khusus', 'is_active' => false]);
+        $this->assertDatabaseCount('financial_groups', 6);
     }
 
     #[TestWith(['2026_11_24_000001_move_office_supply_expenses_to_5_1_h.php', '5-1008', '5.1.H', 'XLS_5_1_H'])]
@@ -31,7 +79,7 @@ class TransactionPerformanceTest extends ExpenseAccessTest
         $attributes = ['name' => 'ATK', 'type' => 'EXPENSE', 'normal_balance' => 'DEBIT', 'is_active' => true];
         $source = ChartAccount::create($attributes + ['code' => $from]);
         $target = ChartAccount::create($attributes + ['code' => $to]);
-        $category = ExpenseCategory::create(['code' => 'ATK', 'name' => 'ATK', 'expense_account_id' => $source->id]);
+        $category = LegacyExpenseCategory::create(['code' => 'ATK', 'name' => 'ATK', 'expense_account_id' => $source->id]);
         $fields = [
             'expense_date' => '2026-11-20', 'expense_category_id' => $category->id, 'description' => 'Pembayaran ATK',
             'amount' => 10000, 'payment_method' => 'CASH', 'cash_bank_account_id' => DB::table('cash_bank_accounts')->value('id'),
@@ -48,7 +96,7 @@ class TransactionPerformanceTest extends ExpenseAccessTest
         }
         $this->assertDatabaseHas('expenses', ['id' => $moved, 'chart_account_id' => $source->id]);
 
-        $destination = ExpenseCategory::create(['code' => $destinationCode, 'name' => 'Kategori Tujuan', 'expense_account_id' => $target->id, 'is_active' => true]);
+        $destination = LegacyExpenseCategory::create(['code' => $destinationCode, 'name' => 'Kategori Tujuan', 'expense_account_id' => $target->id, 'is_active' => true]);
         $migration->up();
         $migration->up();
 
@@ -62,7 +110,7 @@ class TransactionPerformanceTest extends ExpenseAccessTest
         $attributes = ['name' => 'Beban', 'type' => 'EXPENSE', 'normal_balance' => 'DEBIT', 'is_active' => true];
         $source = ChartAccount::create($attributes + ['code' => '5-1012']);
         $other = ChartAccount::where('code', '5001')->firstOrFail();
-        $category = ExpenseCategory::where('code', 'UMUM')->firstOrFail();
+        $category = LegacyExpenseCategory::where('code', 'UMUM')->firstOrFail();
         $fields = [
             'expense_date' => '2026-11-20', 'expense_category_id' => $category->id, 'description' => 'Pembayaran',
             'amount' => 10000, 'payment_method' => 'CASH', 'cash_bank_account_id' => DB::table('cash_bank_accounts')->value('id'),
@@ -93,8 +141,8 @@ class TransactionPerformanceTest extends ExpenseAccessTest
     {
         $migration = require database_path('migrations/'.$file);
         $oldAccount = ChartAccount::where('type', 'EXPENSE')->firstOrFail();
-        $source = ExpenseCategory::create(['code' => $from, 'name' => 'Kategori Lama', 'expense_account_id' => $oldAccount->id]);
-        $other = ExpenseCategory::where('code', 'UMUM')->firstOrFail();
+        $source = LegacyExpenseCategory::create(['code' => $from, 'name' => 'Kategori Lama', 'expense_account_id' => $oldAccount->id]);
+        $other = LegacyExpenseCategory::where('code', 'UMUM')->firstOrFail();
         $fields = [
             'expense_date' => '2026-11-20', 'chart_account_id' => $oldAccount->id, 'description' => 'Pembayaran',
             'amount' => 10000, 'payment_method' => 'CASH', 'cash_bank_account_id' => DB::table('cash_bank_accounts')->value('id'),
@@ -112,48 +160,12 @@ class TransactionPerformanceTest extends ExpenseAccessTest
         $this->assertDatabaseHas('expenses', ['id' => $moved, 'expense_category_id' => $source->id]);
 
         $newAccount = ChartAccount::create(['code' => '5102', 'name' => 'Listrik', 'type' => 'EXPENSE', 'normal_balance' => 'DEBIT', 'is_active' => true]);
-        $target = ExpenseCategory::create(['code' => $to, 'name' => 'Kategori Tujuan', 'expense_account_id' => $newAccount->id, 'is_active' => true]);
+        $target = LegacyExpenseCategory::create(['code' => $to, 'name' => 'Kategori Tujuan', 'expense_account_id' => $newAccount->id, 'is_active' => true]);
         $migration->up();
         $migration->up();
 
         $this->assertDatabaseHas('expenses', ['id' => $moved, 'expense_category_id' => $target->id, 'chart_account_id' => $newAccount->id, 'amount' => 10000]);
         $this->assertDatabaseHas('expenses', ['id' => $unchanged, 'expense_category_id' => $other->id, 'chart_account_id' => $oldAccount->id]);
-    }
-
-    public function test_expense_category_search_paginates_and_preserves_master_actions(): void
-    {
-        (require database_path('migrations/2026_08_18_000008_create_financial_groups_table.php'))->up();
-        $type = 'expense-categories';
-        $attributes = [
-            'financial_group_id' => DB::table('financial_groups')->where('code', 'EXP_OPERATIONAL')->value('id'),
-            'expense_account_id' => ChartAccount::where('type', 'EXPENSE')->value('id'),
-            'is_active' => true,
-        ];
-        $this->post(route('accounting.master.store', $type), $attributes + ['code' => 'UJI_01', 'name' => 'Perlengkapan 01'])
-            ->assertSessionHasNoErrors()->assertSessionHas('success');
-        $category = ExpenseCategory::where('code', 'UJI_01')->firstOrFail();
-        foreach (range(2, 11) as $number) {
-            ExpenseCategory::create($attributes + ['code' => "UJI-{$number}", 'name' => sprintf('Perlengkapan %02d', $number)]);
-        }
-
-        $this->get(route('accounting.master.index', [$type, 'q' => 'Perlengkapan']))
-            ->assertOk()->assertSee('Cari Kategori Pengeluaran')
-            ->assertViewHas('items', fn ($items) => $items->total() === 11
-                && $items->count() === 10
-                && str_contains($items->nextPageUrl(), 'q=Perlengkapan')
-                && $items->getCollection()->every(fn ($row) => $row->relationLoaded('financialGroup')));
-        $this->get(route('accounting.master.index', [$type, 'q' => 'Perlengkapan', 'page' => 2]))
-            ->assertOk()->assertViewHas('items', fn ($items) => $items->count() === 1);
-        $this->get(route('accounting.master.index', [$type, 'q' => 'UJI_', 'edit' => $category->id]))
-            ->assertOk()->assertViewHas('items', fn ($items) => $items->total() === 1 && $items->first()->is($category))
-            ->assertViewHas('editingItem', fn ($item) => $item->is($category));
-
-        $this->put(route('accounting.master.update', [$type, $category->id]), $attributes + ['code' => 'UJI_01', 'name' => 'Alat Uji'])
-            ->assertSessionHasNoErrors()->assertSessionHas('success');
-        $this->get(route('accounting.master.index', [$type, 'q' => 'Alat Uji']))->assertOk()->assertSee('Alat Uji');
-        $this->delete(route('accounting.master.destroy', [$type, $category->id]))->assertSessionHas('success');
-        $this->get(route('accounting.master.index', [$type, 'q' => 'Alat Uji']))
-            ->assertOk()->assertSee('Kategori pengeluaran tidak ditemukan.');
     }
 
     #[TestWith(['2026_11_23_000001_move_receipts_from_1_1_m_to_1_1_o.php', '1.1.M', '1.1.O'])]
@@ -215,7 +227,7 @@ class TransactionPerformanceTest extends ExpenseAccessTest
 
     public function test_batch_query_cost_is_bounded(): void
     {
-        $row = ['expense_date'=>'2026-11-13', 'expense_category_id'=>DB::table('expense_categories')->value('id'),
+        $row = ['expense_date'=>'2026-11-13', 'chart_account_id'=>ChartAccount::where('code', '5001')->value('id'),
             'description'=>'Pengukuran input', 'amount'=>100000, 'payment_method'=>'CASH',
             'cash_bank_account_id'=>DB::table('cash_bank_accounts')->value('id')];
         DB::enableQueryLog();
@@ -238,6 +250,13 @@ class TransactionPerformanceTest extends ExpenseAccessTest
         $this->assertTrue(\Illuminate\Support\Facades\Schema::hasIndex('journal_entries', 'perf_journal_reference'));
         $migration->down();
         $this->assertFalse(\Illuminate\Support\Facades\Schema::hasIndex('expenses', 'perf_expense_type_date'));
-        $this->assertDatabaseCount('expense_categories', 1);
+        $this->assertDatabaseHas('chart_accounts', ['code' => '5001']);
     }
+}
+
+class LegacyExpenseCategory extends Model
+{
+    protected $table = 'expense_categories';
+
+    protected $guarded = [];
 }
